@@ -1,0 +1,23 @@
+STATE: todo_app
+OWNER: ntcesq
+INTENT: create an app displaying a todo list
+---
+The application displays one main component: todo_app, a user interface for managing tasks. It starts as an empty list when the page loads, and tasks can be added and removed as the user interacts with the app.
+
+STATE: todo_list
+OWNER: ntcesq
+INTENT: the app stores a list of tasks
+---
+The application holds one central piece of data: todo_list, an ordered collection of task items that starts empty when the page loads. Items are added and removed as the user interacts with the todo_app.
+
+TYPE: task
+OWNER: ntcesq
+INTENT: each task has a title and a done flag
+---
+A task has a task_title, a short text string set at creation and never modified. It also has task_done, a boolean that starts as false and flips when the user marks the task complete.
+
+STRUCTURE: todo_app
+OWNER: ntcesq
+INTENT: the user sees a todo list interface
+---
+The todo_app presents a list of tasks to the user, along with an input field for adding new tasks. The list of tasks is displayed as a scrollable list, with each task showing its title and a checkbox for marking it as complete. The input field is located at the bottom of the screen, prompting the user to enter a new task title. The user can add, remove, and reorder tasks within the list.

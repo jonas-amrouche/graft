@@ -1,0 +1,27 @@
+STATE: ingredient_list
+OWNER: na7qal
+INTENT: the app stores a list of ingredients
+---
+The application maintains a memory of all ingredients it displays, stored in ingredient_list. This list is populated with 30 unique ingredients at the start of the app, ensuring a full grid. The ingredient_list cannot be modified by the user.
+
+WHEN: display_ingredient
+OWNER: na7qal
+INTENT: an ingredient is displayed in the grid
+---
+This action occurs for each ingredient in ingredient_list. The ingredient's text is displayed in the corresponding grid cell. Each ingredient's text is bold and left-aligned to make it easy to read.
+
+WHEN: ingredient_click
+OWNER: na7qal
+INTENT: clicking an ingredient does not perform any action
+---
+When a user clicks an ingredient in the grid, the application registers the click but does not execute any actions. The intention behind this design is to create an engaging learning experience, where users are encouraged to explore and memorize the ingredients at their own pace.
+
+STATE: modern_ingredient_assign
+OWNER: nga0lh
+INTENT: 
+---
+The Modern Cooking Assistant, in its current state, focuses on assigning a random classic cooking ingredient to the input ingredient. To ensure a seamless and engaging user experience, the app adopts a modern UI design.
+
+For data storage, the app maintains a comprehensive list of common classic cooking ingredients. Upon receiving an ingredient input, the app selects a random ingredient from this list and assigns it to the input.
+
+The user interaction is simple and intuitive. The app accepts a single input ingredient, processes it, and displays the assigned classic cooking ingredient. This feature encourages exploration and learning about various ingredients used in classic recipes.

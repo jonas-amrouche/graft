@@ -1,0 +1,17 @@
+STATE: tier_list
+OWNER: nzpdsj
+INTENT: the app organizes items into a structured list
+---
+In this tierlist app, the central concept is the tier_list, which is a hierarchical collection of items. It starts as an empty list when the app loads. Each item added to the tier_list is assigned a unique identifier to maintain its place within the structure. The app organizes these items hierarchically, allowing for nested and categorized lists, which can be used for various purposes such as organizing games, items in a game store, or any hierarchical categorization.
+
+STATE: item
+OWNER: nzpdsj
+INTENT: each item in the tier list has specific attributes
+---
+An item in the tier_list app has a few key attributes: it has an item_name which is a string that defines the name of the item. It also has a parent_id, which is a unique identifier of the parent item, indicating the hierarchy within the tier_list. Additionally, each item can have a description, which is an optional piece of text that gives more details about the item. The item's status can be marked with a boolean status_flag, which can indicate if the item is active or inactive.
+
+STATE: main_state
+OWNER: n0pk8u
+INTENT: make the main window dark themed with modern ui
+---
+In the main window, the app stores user preferences for the dark theme and modern user interface settings. These preferences are managed through a centralized configuration file, ensuring that any changes made by the user are promptly applied, thus providing a seamless and consistent user experience. Additionally, the app uses dynamic CSS files to reflect these settings, allowing for a smooth transition between light and dark themes without disrupting the overall layout or functionality of the application. The app also employs a modern, intuitive UI design, which includes customizable widgets and elements, ensuring that the user can easily access and configure these settings from within the main window.

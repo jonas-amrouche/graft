@@ -1,0 +1,14 @@
+{
+  "name": "map",
+  "nodes": [
+    {
+      "id": "n0blfs",
+      "label": "Create App",
+      "intent": "Create an app displaying 10 standard cooking ingredientds",
+      "parent": null,
+      "children": [],
+      "owns": []
+    }
+  ],
+  "root_id": "n0blfs"
+}

@@ -1,0 +1,24 @@
+{
+  "name": "reters",
+  "nodes": [
+    {
+      "id": "nzpdsj",
+      "label": "Create an tierlist app",
+      "intent": "Create an tierlist app",
+      "parent": null,
+      "children": [
+        "n0pk8u"
+      ],
+      "owns": []
+    },
+    {
+      "id": "n0pk8u",
+      "label": "make the main window dark",
+      "intent": "make the main window dark themed with modern ui",
+      "parent": "nzpdsj",
+      "children": [],
+      "owns": []
+    }
+  ],
+  "root_id": "nzpdsj"
+}

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tierlist App</title>
+    <style>
+        body {
+            background-color: #333;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .tierlist {
+            width: 80%;
+            background-color: #444;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .tierlist h1 {
+            text-align: center;
+        }
+        .item {
+            margin-bottom: 10px;
+            padding: 5px;
+            border-radius: 4px;
+            background-color: #555;
+        }
+        .item h2 {
+            margin-bottom: 5px;
+        }
+        .item p {
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="tierlist">
+        <h1>Tierlist App</h1>
+        <div id="items"></div>
+        <button onclick="addItem()">Add Item</button>
+    </div>
+
+    <script>
+        // [graft:tier_list]
+        let tier_list = [];
+
+        // [graft:item]
+        function addItem() {
+            let item_name = prompt("Enter item name:");
+            let parent_id = prompt("Enter parent item ID (or leave blank):") || null;
+            let description = prompt("Enter item description (optional):");
+            let status_flag = confirm("Is this item active?");
+
+            const newItem = {
+                item_name: item_name,
+                parent_id: parent_id,
+                description: description,
+                status_flag: status_flag
+            };
+
+            tier_list.push(newItem);
+            renderItems();
+        }
+
+        // [graft:main_state]
+        // This section is intentionally left empty for now.
+        // It will contain configurations and settings for the main window.
+
+        // Helper function to render items in the tierlist
+        function renderItems() {
+            const itemsContainer = document.getElementById('items');
+            itemsContainer.innerHTML = '';
+
+            tier_list.forEach(item => {
+                const itemElement = document.createElement('div');
+                itemElement.classList.add('item');
+
+                const titleElement = document.createElement('h2');
+                titleElement.textContent = item.item_name;
+                itemElement.appendChild(titleElement);
+
+                const descriptionElement = document.createElement('p');
+                descriptionElement.textContent = item.description;
+                itemElement.appendChild(descriptionElement);
+
+                itemsContainer.appendChild(itemElement);
+            });
+        }
+
+        // Initialize the application
+        renderItems();
+    </script>
+</body>
+</html>
