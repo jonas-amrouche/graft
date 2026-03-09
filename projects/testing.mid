@@ -1,0 +1,17 @@
+STATE: Task List
+OWNER: narcrh
+INTENT: Built the simplest To-Do app to manage tasks and keep track of user's tasks
+---
+The Task List data contains a list of tasks, each task including a unique identifier, task title, and due date. When the app is first launched, the Task List is empty.
+
+WHEN: User adds a new task to the list
+OWNER: narcrh
+INTENT: Built the simplest To-Do app
+---
+When the user adds a new task to the list, the task is immediately added to the Task List. The new task appears in the list, and the user is presented with the updated list. The added task will remain in the Task List until it is completed or deleted by the user.
+
+STATE: Now
+OWNER: narcrh
+INTENT: Built the simplest To-Do app
+---
+Now, the user can view, add, edit, and delete tasks in the Task List. The user can also filter the tasks based on their due date or sort them alphabetically. The To-Do app provides a simple and efficient way to manage tasks and keep track of them.
