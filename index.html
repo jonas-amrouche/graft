@@ -311,6 +311,73 @@ body { background:var(--bg); color:var(--text); font-family:var(--font-ui); font
 .badge-warn { background:rgba(224,176,80,.1); color:var(--c-warn); border:1px solid rgba(224,176,80,.25); }
 .settings-foot { padding:12px 16px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:8px; flex-shrink:0; }
 .models-loading { font-family:var(--font-mono); font-size:10px; color:var(--text-3); padding:4px 0; }
+
+/* ── Part status badges ── */
+.part-badge {
+  font-family:var(--font-mono); font-size:8px; letter-spacing:.12em; text-transform:uppercase;
+  padding:2px 6px; border-radius:2px; margin-left:8px; flex-shrink:0; cursor:default;
+  transition:all .15s;
+}
+.part-badge-draft    { background:rgba(255,255,255,.05); color:var(--text-4); border:1px solid var(--border); }
+.part-badge-verified { background:rgba(94,203,126,.1); color:var(--c-state); border:1px solid rgba(94,203,126,.3); }
+.part-badge-affected { background:rgba(224,176,80,.1); color:var(--c-warn); border:1px solid rgba(224,176,80,.3); animation:pulse 2s infinite; }
+.part-verify-btn {
+  font-family:var(--font-mono); font-size:9px; padding:3px 8px; border-radius:2px;
+  border:1px solid rgba(94,203,126,.3); background:rgba(94,203,126,.06);
+  color:var(--c-state); cursor:pointer; margin-left:6px; flex-shrink:0;
+  transition:all .12s; opacity:0;
+}
+.mid-part-header:hover .part-verify-btn { opacity:1; }
+.part-verify-btn:hover { background:rgba(94,203,126,.15); border-color:var(--c-state); }
+
+/* ── Affected notification bar ── */
+.affected-bar {
+  position:fixed; bottom:32px; left:50%; transform:translateX(-50%);
+  background:var(--surface2); border:1px solid rgba(224,176,80,.4);
+  border-left:3px solid var(--c-warn);
+  border-radius:4px; padding:12px 16px; z-index:500;
+  display:flex; align-items:center; gap:12px;
+  box-shadow:0 4px 24px rgba(0,0,0,.5);
+  font-size:12px; color:var(--text-2);
+  max-width:520px; min-width:320px;
+  animation:slide-up .2s ease;
+}
+@keyframes slide-up { from{transform:translateX(-50%) translateY(12px);opacity:0} to{transform:translateX(-50%) translateY(0);opacity:1} }
+.affected-bar-icon { font-size:14px; flex-shrink:0; }
+.affected-bar-text { flex:1; line-height:1.5; }
+.affected-bar-text strong { color:var(--c-warn); }
+.affected-bar-acts { display:flex; gap:6px; flex-shrink:0; }
+
+/* ── Diff modal ── */
+.diff-view {
+  background:var(--bg); border:1px solid var(--border); border-radius:3px;
+  font-family:var(--font-mono); font-size:11px; line-height:1.7;
+  padding:10px 12px; max-height:260px; overflow-y:auto;
+  white-space:pre; color:var(--text-3);
+}
+.diff-view .diff-add { color:var(--c-state); }
+.diff-view .diff-del { color:var(--c-when); }
+.diff-view .diff-hdr { color:var(--text-4); }
+
+/* ── Mid section targeting ── */
+.mid-section {
+  cursor: pointer;
+  transition: background .1s;
+  border-radius: 2px;
+  padding: 0 2px;
+  margin: 0 -2px;
+}
+.mid-section:hover { background: rgba(255,255,255,.02); }
+.mid-section-targeted { background: rgba(176,144,220,.07) !important; border-left: 2px solid rgba(176,144,220,.4); padding-left: 10px; }
+.mid-regen-btn {
+  font-family: var(--font-mono); font-size: 9px; padding: 2px 6px;
+  border-radius: 2px; border: 1px solid var(--border2); background: none;
+  color: var(--text-3); cursor: pointer; margin-left: auto; flex-shrink: 0;
+  opacity: 0; transition: opacity .1s, color .1s;
+}
+.mid-sec-header:hover .mid-regen-btn { opacity: 1; }
+.mid-regen-btn:hover { color: var(--c-accent); border-color: var(--c-accent); }
+.mid-sec-header { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; }
 </style>
 </head>
 <body>
@@ -367,10 +434,8 @@ body { background:var(--bg); color:var(--text); font-family:var(--font-ui); font
   <button class="btn btn-sm" onclick="saveProject()">Save</button>
   <button class="btn btn-sm" onclick="openSettings()" title="Settings">⚙</button>
   <div class="topbar-right">
-    <span class="cached-badge" id="cached-badge">Mid cached</span>
+    <span class="cached-badge" id="cached-badge">Mid saved</span>
     <button class="btn btn-stop" id="btn-stop" onclick="stopGeneration()">■ Stop</button>
-    <button class="btn btn-intent" id="btn-mid" onclick="startCompileMid()" disabled title="Update Mid for selected node (Enter)">↻ Update Mid</button>
-    <button class="btn btn-warn" id="btn-regen" onclick="regenAll()" disabled>↺ Regen All</button>
     <button class="btn btn-primary" id="btn-code" onclick="compileCode()" disabled>▶ Generate Code</button>
   </div>
 </div>
@@ -413,7 +478,7 @@ body { background:var(--bg); color:var(--text); font-family:var(--font-ui); font
     <div class="output-area active" id="tab-mid">
       <div class="stream-view" id="mid-stream" style="display:none"></div>
       <div class="mid-viewer" id="mid-viewer">
-        <div class="mid-empty"><div class="mid-empty-icon">◈</div><div>Select a node and write your intent.<br>Press <strong>Enter</strong> to compile.</div></div>
+        <div class="mid-empty"><div class="mid-empty-icon">◈</div><div>Write a prompt on the right.<br>Press <strong>Enter</strong> to compile.</div></div>
       </div>
     </div>
 
@@ -427,32 +492,46 @@ body { background:var(--bg); color:var(--text); font-family:var(--font-ui); font
     </div>
   </div>
 
-  <!-- RIGHT: Intent Tree -->
+  <!-- RIGHT: Prompt Panel -->
   <div class="panel panel-right" id="panel-right">
-    <div class="panel-head">
-      <span class="panel-title">Intent Tree</span>
-      <button class="btn btn-sm" onclick="addRoot()">+ Root</button>
-    </div>
-    <div class="tree-scroll" id="tree-wrap"></div>
-    <div class="intent-ed" id="intent-ed">
-      <textarea class="intent-ta" id="intent-ta"
-        placeholder="Describe what this part should do…&#10;&#10;Enter to compile · Shift+Enter for new line · Tab for child"
-        rows="4"
-        oninput="onIntentInput()"
-        onkeydown="onIntentKey(event)"
-      ></textarea>
-      <div class="intent-ta-hint">Enter <em>compile</em> · Shift+Enter <em>new line</em> · Tab <em>add child</em></div>
-      <div class="owns-hint" id="owns-hint"></div>
-      <div class="intent-ed-acts">
-        <button class="btn btn-sm" onclick="addChild()">+ Child</button>
-        <button class="btn btn-sm" style="color:var(--c-when)" onclick="requestDelete()">Delete</button>
+
+    <!-- Header -->
+    <div class="panel-head" style="flex-direction:column;align-items:stretch;gap:6px;padding:10px 12px;min-height:unset">
+      <div style="display:flex;align-items:center;gap:7px">
+        <span class="panel-title" style="flex:1">Prompt</span>
+        <button class="btn btn-sm" id="btn-history" onclick="toggleHistory()" title="Prompt history">⟳ History</button>
+      </div>
+      <!-- Target bar — shown when a part/section is targeted -->
+      <div id="prompt-target-bar" style="display:none;font-family:var(--font-mono);font-size:9px;color:var(--c-intent);letter-spacing:.06em;padding:4px 8px;background:rgba(176,144,220,.07);border:1px solid rgba(176,144,220,.2);border-radius:2px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="opacity:.6">targeting</span>
+          <span id="prompt-target-label" style="color:var(--c-intent);flex:1"></span>
+          <button onclick="clearTarget()" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:11px;padding:0 2px;line-height:1">✕</button>
+        </div>
+        <div id="prompt-target-sections" style="margin-top:3px;color:var(--text-3);font-size:8px;line-height:1.6"></div>
       </div>
     </div>
-    <div class="intent-guide" id="intent-guide">
-      <div class="intent-guide-title">Intent guidelines</div>
-      <div class="intent-guide-row"><span class="ok">✓</span> One thing per intent — any thing</div>
-      <div class="intent-guide-row"><span class="bad">✗</span> Multiple things joined with "and"</div>
+
+    <!-- Prompt textarea -->
+    <div class="intent-ed" style="border-top:none;flex-shrink:0;display:block">
+      <textarea class="intent-ta" id="prompt-ta"
+        placeholder="Describe what to build or change…&#10;&#10;Enter to compile · Shift+Enter for new line"
+        rows="5"
+        oninput="onPromptInput()"
+        onkeydown="onPromptKey(event)"
+      ></textarea>
+      <div class="intent-ta-hint">Enter <em>compile</em> · Shift+Enter <em>new line</em></div>
+      <div class="intent-ed-acts" style="justify-content:flex-end">
+        <button class="btn btn-sm btn-intent" id="btn-compile-prompt" onclick="compileMidFromPrompt()" disabled>↻ Compile</button>
+      </div>
     </div>
+
+    <!-- History drawer -->
+    <div id="history-drawer" style="display:none;flex:1;overflow:hidden;flex-direction:column;border-top:1px solid var(--border)">
+      <div style="padding:8px 12px 4px;font-family:var(--font-mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--text-4)">History</div>
+      <div id="history-list" style="flex:1;overflow-y:auto;padding:0 0 16px"></div>
+    </div>
+
   </div>
 
 </div>
@@ -469,23 +548,23 @@ body { background:var(--bg); color:var(--text); font-family:var(--font-ui); font
 
 <script>
 // ── State ─────────────────────────────────────────────────────────────────────
-let project      = null;
-let selId        = null;
-let sections     = [];
-let codeFiles    = {};
-let expanded     = new Set();
-let currentReader = null;
-let generating   = false;
-let pendingCompileNode = null;
-let pendingTransferIds = [];
-let deleteTargetId = null;
+let project        = null;
+let sections       = [];
+let parts          = [];      // MidPart[]
+let history        = [];      // PromptHistoryEntry[]
+let codeFiles      = {};
+let currentReader  = null;
+let generating     = false;
 let activeCodeFile = null;
+let historyOpen    = false;
+
+// Prompt panel state
+let targetPartId      = null;   // soft target: part id or null (global)
+let targetSectionIds  = [];     // specific section ids within target part
 
 // ── Util ──────────────────────────────────────────────────────────────────────
-const uid  = () => 'n' + Math.random().toString(36).slice(2,7);
-const byId = id => project?.nodes.find(n => n.id === id) || null;
-const sectionsOf = nodeId => sections.filter(s => s.owner === nodeId);
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const partOf = sectionId => { const s = sections.find(x=>x.id===sectionId); return s ? parts.find(p=>p.id===s.part_id)||null : null; };
 
 function setStatus(txt, state='ok') {
   document.getElementById('stat-text').textContent = txt;
@@ -496,25 +575,24 @@ function setGenerating(active, label='') {
   generating = active;
   document.getElementById('gen-bar').classList.toggle('active', active);
   document.getElementById('btn-stop').classList.toggle('visible', active);
-  document.getElementById('btn-mid').disabled   = active || !selId;
-  document.getElementById('btn-regen').disabled = active || !project?.nodes.length;
   document.getElementById('btn-code').disabled  = active || !sections.length;
+  document.getElementById('btn-compile-prompt').disabled = active || !document.getElementById('prompt-ta')?.value.trim() || !project;
   document.getElementById('stat-tokens').style.display = active ? '' : 'none';
   if (active) setStatus(label, 'busy');
 }
 
 function updateButtons() {
   if (generating) return;
-  document.getElementById('btn-mid').disabled   = !selId;
-  document.getElementById('btn-regen').disabled = !project?.nodes.length;
-  document.getElementById('btn-code').disabled  = !sections.length;
+  document.getElementById('btn-code').disabled = !sections.length;
+  document.getElementById('btn-compile-prompt').disabled = !document.getElementById('prompt-ta')?.value.trim() || !project;
 }
 
-function updateNodeCount() {
+function updateStatBar() {
   const el = document.getElementById('stat-nodes');
   if (!project) { el.textContent = ''; return; }
-  el.textContent = project.nodes.length + ' nodes · ' + sections.length + ' sections';
+  el.textContent = parts.length + ' parts · ' + sections.length + ' sections';
 }
+function updateNodeCount() { updateStatBar(); }
 
 function showCached(v) { document.getElementById('cached-badge').style.display = v ? '' : 'none'; }
 
@@ -550,9 +628,8 @@ function updateSidebarHeader() {
   titleEl.textContent = project.name;
   const kws = {};
   sections.forEach(s => { kws[s.keyword] = (kws[s.keyword]||0)+1; });
-  const parts = new Set(sections.map(s=>s.owner).filter(o=>o&&o!=='orphaned')).size;
   const kwStr = Object.entries(kws).map(([k,v])=>v+' '+k.toLowerCase()).join(' · ') || 'no sections';
-  metaEl.textContent = project.name.replace(/ /g,'_').toLowerCase() + '.mid · ' + parts + ' nodes';
+  metaEl.textContent = project.name.replace(/ /g,'_').toLowerCase() + '.mid · ' + parts.length + ' parts';
   if (sections.length) {
     footerEl.style.display = '';
     footerEl.textContent = sections.length + ' sections · ' + kwStr;
@@ -572,7 +649,7 @@ function openNew() {
 }
 
 function clearAllPanels() {
-  document.getElementById('mid-viewer').innerHTML = '<div class="mid-empty"><div class="mid-empty-icon">◈</div><div>Select a node and write your intent.<br>Press <strong>Enter</strong> to compile.</div></div>';
+  document.getElementById('mid-viewer').innerHTML = '<div class="mid-empty"><div class="mid-empty-icon">◈</div><div>Write a prompt on the right.<br>Press <strong>Enter</strong> to compile.</div></div>';
   document.getElementById('mid-stream').style.display = 'none';
   document.getElementById('mid-stream').textContent = '';
   document.getElementById('code-out').textContent = '';
@@ -580,8 +657,7 @@ function clearAllPanels() {
   document.getElementById('code-stream').style.display = 'none';
   document.getElementById('code-stream').textContent = '';
   document.getElementById('preview').srcdoc = '';
-  document.getElementById('intent-ed').style.display = 'none';
-  document.getElementById('intent-guide').classList.remove('visible');
+
   switchTab('mid');
 }
 
@@ -589,16 +665,16 @@ function confirmNew() {
   const name = document.getElementById('new-name').value.trim();
   if (!name) return;
   project = { name, nodes: [], root_id: null };
-  selId = null; sections = []; codeFiles = {}; expanded = new Set();
+  sections = []; parts = []; codeFiles = {};
   closeModal('modal-new');
   const sel = document.getElementById('proj-sel');
   const safe = name.replace(/ /g,'_').toLowerCase();
   if (![...sel.options].find(o => o.value === safe)) sel.appendChild(new Option(safe, safe));
   sel.value = safe;
   clearAllPanels();
-  renderTree(); renderMid(); renderStruct(); renderFileTree();
+  renderMid(); renderStruct(); renderFileTree();
   updateSidebarHeader();
-  updateButtons(); updateNodeCount(); showCached(false);
+  updateButtons(); updateStatBar(); showCached(false);
   setStatus('New project: ' + name);
 }
 document.getElementById('new-name').addEventListener('keydown', e => {
@@ -606,83 +682,7 @@ document.getElementById('new-name').addEventListener('keydown', e => {
   if (e.key === 'Escape') closeModal('modal-new');
 });
 
-// Conflict modal
-function showConflictModal(node, overlaps) {
-  pendingCompileNode = node;
-  const lbl = node.label || node.intent.slice(0,30);
-  document.getElementById('conflict-sub').textContent =
-    `"${lbl}" may overlap with ${overlaps.length} existing section${overlaps.length!==1?'s':''}.`;
-  const list = document.getElementById('conflict-list');
-  list.innerHTML = '';
-  overlaps.forEach(o => {
-    const ownerNode = byId(o.current_owner);
-    const ownerLabel = ownerNode ? (ownerNode.label || ownerNode.id) : o.current_owner;
-    list.innerHTML += `
-      <div class="conflict-item">
-        <input type="checkbox" id="cf-${o.section_id}" value="${o.section_id}" />
-        <div class="conflict-item-body">
-          <div class="conflict-item-name">${esc(o.section_keyword)}: ${esc(o.section_name)}</div>
-          <div class="conflict-item-meta">Owned by: <strong>${esc(ownerLabel)}</strong><br>↑ ${esc(o.section_intent||'')}</div>
-        </div>
-        <div class="conflict-score">${Math.round(o.score*100)}%</div>
-      </div>`;
-  });
-  openModal('modal-conflict');
-}
-
-function proceedWithConflicts() {
-  pendingTransferIds = [];
-  document.querySelectorAll('#conflict-list input:checked').forEach(cb => pendingTransferIds.push(cb.value));
-  closeModal('modal-conflict');
-  pendingTransferIds.forEach(sid => {
-    const sec = sections.find(s => s.id === sid);
-    if (sec) {
-      const old = byId(sec.owner);
-      if (old) old.owns = old.owns.filter(id => id !== sid);
-      sec.owner = pendingCompileNode.id;
-    }
-  });
-  doCompileNode(pendingCompileNode);
-}
-
-// Delete modal
-function requestDelete() {
-  if (!selId || !project) return;
-  deleteTargetId = selId;
-  const node = byId(selId);
-  const owned = sectionsOf(selId);
-  const lbl = node?.label || node?.intent?.slice(0,30) || selId;
-  document.getElementById('delete-sub').innerHTML =
-    `Delete <strong>"${esc(lbl)}"</strong>?` +
-    (owned.length
-      ? `<br><br>Owns <strong>${owned.length} Mid section${owned.length!==1?'s':''}</strong>: ${owned.map(s=>s.name).join(', ')}.`
-      : '<br><br>No Mid sections owned.');
-  openModal('modal-delete');
-}
-
-function confirmDelete(removeMid) {
-  if (removeMid) {
-    sections = sections.filter(s => s.owner !== deleteTargetId);
-    renderMid(); renderStruct();
-  } else {
-    sections.forEach(s => { if (s.owner === deleteTargetId) s.owner = 'orphaned'; });
-  }
-  doDeleteNode(deleteTargetId);
-  closeModal('modal-delete');
-}
-
-function doDeleteNode(id) {
-  const toDelete = new Set();
-  function collect(nid) { toDelete.add(nid); const n = byId(nid); if (n) n.children.forEach(collect); }
-  collect(id);
-  const node = byId(id);
-  if (node?.parent) { const p = byId(node.parent); if (p) p.children = p.children.filter(c => c !== id); }
-  project.nodes = project.nodes.filter(n => !toDelete.has(n.id));
-  toDelete.forEach(i => expanded.delete(i));
-  if (toDelete.has(project.root_id)) project.root_id = null;
-  if (toDelete.has(selId)) { selId = null; document.getElementById('intent-ed').style.display = 'none'; }
-  renderTree(); updateButtons(); updateNodeCount();
-}
+// (conflict modal removed — v2)
 
 // ── Stop ──────────────────────────────────────────────────────────────────────
 async function stopGeneration() {
@@ -706,20 +706,35 @@ async function loadProjectList() {
   } catch(e) { setStatus('Server unreachable', 'error'); }
 }
 
+// ── Util additions ───────────────────────────────────────────────────────────
+function sectionsToText(secs) {
+  return secs.map(s =>
+    [s.keyword+': '+s.name, 'MARKER: '+(s.code_marker||''), 'INTENT: '+s.intent_tag, '---', s.body.trim()].join('\n')
+  ).join('\n\n');
+}
+
+// ── Project load/save (updated) ───────────────────────────────────────────────
 async function loadProject(name) {
-  if (!name) { project=null; selId=null; sections=[]; codeFiles={}; clearAllPanels(); renderTree(); renderMid(); renderStruct(); renderFileTree(); updateButtons(); showCached(false); updateSidebarHeader(); return; }
+  if (!name) {
+    project=null; sections=[]; parts=[]; history=[]; codeFiles={};
+    clearAllPanels(); renderMid(); renderStruct(); renderFileTree();
+    updateButtons(); showCached(false); updateSidebarHeader();
+    return;
+  }
   try {
-    const [pr, mr, cr] = await Promise.all([
+    const [pr, mr, cr, hr] = await Promise.all([
       fetch('/projects/'+name),
       fetch('/projects/'+name+'/mid'),
-      fetch('/projects/'+name+'/code')
+      fetch('/projects/'+name+'/code'),
+      fetch('/projects/'+name+'/history'),
     ]);
     project = await pr.json();
     const md = await mr.json();
     sections = md.sections || [];
-    project.nodes.forEach(n => { n.owns = sections.filter(s => s.owner===n.id).map(s => s.id); });
+    parts    = md.parts    || [];
+    history  = (await hr.json()).history || [];
 
-    selId = null; codeFiles = {};
+    codeFiles = {};
     const cd = await cr.json();
     const safe = name.replace(/ /g,'_').toLowerCase();
     await Promise.all((cd.files||[]).map(async f => {
@@ -730,7 +745,6 @@ async function loadProject(name) {
     }));
 
     clearAllPanels();
-
     const firstFile = Object.keys(codeFiles)[0];
     if (firstFile) {
       activeCodeFile = firstFile;
@@ -738,12 +752,11 @@ async function loadProject(name) {
       document.getElementById('preview').srcdoc = codeFiles[firstFile];
     }
 
-    expanded = new Set(project.nodes.map(n => n.id));
-    renderTree(); renderMid(); renderStruct(); renderFileTree();
-    updateSidebarHeader();
-    updateButtons(); updateNodeCount();
+    renderMid(); renderStruct(); renderFileTree();
+    updateSidebarHeader(); updateButtons(); updateStatBar();
     showCached(sections.length > 0);
     setStatus('Loaded: ' + name);
+    renderHistory();
   } catch(e) { setStatus('Load failed', 'error'); console.error(e); }
 }
 
@@ -752,7 +765,8 @@ async function saveProject() {
   try {
     await fetch('/projects', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({project}) });
     if (sections.length) {
-      await fetch('/projects/mid', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({project_name:project.name,sections}) });
+      await fetch('/projects/mid', { method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({project_name:project.name, sections, parts}) });
     }
     setStatus('Saved', 'ok');
     await loadProjectList();
@@ -760,219 +774,94 @@ async function saveProject() {
   } catch(e) { setStatus('Save failed', 'error'); }
 }
 
-// ── Tree ops ──────────────────────────────────────────────────────────────────
-function addRoot() {
-  if (!project) { openNew(); return; }
-  flushIntent();
-  const node = { id:uid(), label:'', intent:'', parent:null, children:[], owns:[] };
-  project.nodes.push(node);
-  if (!project.root_id) project.root_id = node.id;
-  expanded.add(node.id);
-  renderTree();
-  selectNode(node.id);
-  setTimeout(() => document.getElementById('intent-ta').focus(), 30);
-  updateButtons(); updateNodeCount();
+// ── Prompt panel ──────────────────────────────────────────────────────────────
+
+function onPromptInput() {
+  const v = document.getElementById('prompt-ta').value.trim();
+  document.getElementById('btn-compile-prompt').disabled = !v || !project;
 }
 
-function addChild() {
-  if (!project || !selId) return;
-  flushIntent();
-  const parent = byId(selId);
-  if (!parent) return;
-  const node = { id:uid(), label:'', intent:'', parent:selId, children:[], owns:[] };
-  project.nodes.push(node);
-  parent.children.push(node.id);
-  expanded.add(selId);
-  renderTree();
-  selectNode(node.id);
-  setTimeout(() => document.getElementById('intent-ta').focus(), 30);
-  updateButtons(); updateNodeCount();
-}
-
-function selectNode(id) {
-  selId = id;
-  const node = byId(id);
-  if (!node) return;
-  document.getElementById('intent-ed').style.display = 'block';
-  document.getElementById('intent-guide').classList.add('visible');
-  document.getElementById('intent-ta').value = node.intent || '';
-  updateOwnsHint(node);
-  renderTree();
-  updateButtons();
-  highlightOwnedSections(id);
-}
-
-function updateOwnsHint(node) {
-  const hint = document.getElementById('owns-hint');
-  const owned = sectionsOf(node.id);
-  hint.textContent = owned.length ? '↑ owns: ' + owned.map(s => s.name || s.keyword).join(', ') : '';
-}
-
-function highlightOwnedSections(nodeId) {
-  document.querySelectorAll('.mid-section').forEach(el => el.classList.remove('owned-selected'));
-  sections.filter(s => s.owner === nodeId).forEach(s => {
-    const el = document.getElementById(s.id);
-    if (el) el.classList.add('owned-selected');
-  });
-}
-
-function flushIntent() {
-  if (!selId) return;
-  const node = byId(selId);
-  if (!node) return;
-  node.intent = document.getElementById('intent-ta').value;
-  if (!node.label && node.intent) node.label = node.intent.split(' ').slice(0, 5).join(' ');
-}
-
-function onIntentInput() {
-  if (!selId) return;
-  const node = byId(selId);
-  if (!node) return;
-  const val = document.getElementById('intent-ta').value;
-  node.intent = val;
-  node.label = val.trim().split(/\s+/).slice(0, 5).join(' ');
-  const lbl = document.querySelector(`.tree-row[data-id="${selId}"] .tree-label`);
-  if (lbl) {
-    lbl.textContent = node.label || 'empty';
-    lbl.className = 'tree-label' + (node.label ? '' : ' empty');
-  }
-}
-
-function onIntentKey(e) {
+function onPromptKey(e) {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
-    flushIntent();
-    renderTree();
-    startCompileMid();
-  }
-  if (e.key === 'Tab') {
-    e.preventDefault();
-    flushIntent();
-    addChild();
+    compileMidFromPrompt();
   }
 }
 
-function toggleExpand(id, e) {
-  e.stopPropagation();
-  if (expanded.has(id)) expanded.delete(id); else expanded.add(id);
-  renderTree();
+function setTarget(partId, sectionIds = [], labelText = '') {
+  targetPartId     = partId;
+  targetSectionIds = sectionIds;
+  const bar   = document.getElementById('prompt-target-bar');
+  const label = document.getElementById('prompt-target-label');
+  const secsEl = document.getElementById('prompt-target-sections');
+  if (partId) {
+    bar.style.display = '';
+    const part = parts.find(p => p.id === partId);
+    label.textContent = labelText || part?.name || partId;
+    if (sectionIds.length) {
+      const names = sectionIds.map(sid => {
+        const s = sections.find(x => x.id === sid);
+        return s ? s.keyword+': '+s.name : sid;
+      });
+      secsEl.textContent = names.join('  ·  ');
+    } else {
+      secsEl.textContent = 'full part';
+    }
+  } else {
+    bar.style.display = 'none';
+  }
 }
 
-// ── Tree render ───────────────────────────────────────────────────────────────
-function renderTree() {
-  const wrap = document.getElementById('tree-wrap');
-  if (!project || !project.nodes.length) {
-    wrap.innerHTML = '<div class="tree-empty-msg">Create a project<br>then add intent nodes.</div>';
+function clearTarget() {
+  setTarget(null);
+}
+
+function toggleHistory() {
+  historyOpen = !historyOpen;
+  const drawer = document.getElementById('history-drawer');
+  drawer.style.display = historyOpen ? 'flex' : 'none';
+  document.getElementById('btn-history').style.color = historyOpen ? 'var(--c-intent)' : '';
+  if (historyOpen) renderHistory();
+}
+
+function renderHistory() {
+  const el = document.getElementById('history-list');
+  if (!history.length) {
+    el.innerHTML = '<div style="padding:12px 14px;font-family:var(--font-mono);font-size:10px;color:var(--text-4)">No prompts yet.</div>';
     return;
   }
-  const allIds = new Set(project.nodes.map(n => n.id));
-  const roots = project.nodes.filter(n => !n.parent || !allIds.has(n.parent));
-  wrap.innerHTML = '';
-  roots.forEach(r => wrap.appendChild(buildRow(r, 0)));
+  // Most recent first
+  const entries = [...history].reverse();
+  el.innerHTML = entries.map(e => {
+    const ts = new Date(e.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    const target = e.target_part_id
+      ? '<span style="color:var(--c-intent);opacity:.7">→ '+ esc(e.target_part_id) +'</span>'
+      : '<span style="color:var(--text-4)">global</span>';
+    const changes = [
+      ...e.sections_added.map(n=>'<span style="color:var(--c-state)">+'+esc(n)+'</span>'),
+      ...e.sections_modified.map(n=>'<span style="color:var(--c-warn)">~'+esc(n)+'</span>'),
+      ...e.sections_removed.map(n=>'<span style="color:var(--c-when)">−'+esc(n)+'</span>'),
+    ].join(' ');
+    return `<div style="padding:8px 14px;border-bottom:1px solid var(--border);cursor:default"
+      onmouseenter="this.style.background='rgba(255,255,255,.02)'"
+      onmouseleave="this.style.background=''">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <span style="font-family:var(--font-mono);font-size:9px;color:var(--text-4)">${ts}</span>
+        ${target}
+      </div>
+      <div style="font-size:11px;color:var(--text-2);line-height:1.4;margin-bottom:${changes?'5px':'0'}">${esc(e.prompt)}</div>
+      ${changes ? '<div style="font-family:var(--font-mono);font-size:9px;line-height:1.8">'+changes+'</div>' : ''}
+    </div>`;
+  }).join('');
 }
 
-function buildRow(node, depth) {
-  const hasKids = node.children.length > 0;
-  const isOpen  = expanded.has(node.id);
-  const isSel   = node.id === selId;
-  const owned   = sectionsOf(node.id);
-  const hasMid  = owned.length > 0;
+// ── Compile (new architecture) ────────────────────────────────────────────────
 
-  const wrap = document.createElement('div');
+async function compileMidFromPrompt() {
+  const prompt = document.getElementById('prompt-ta').value.trim();
+  if (!prompt || !project) return;
 
-  const row = document.createElement('div');
-  row.className = 'tree-row' + (isSel?' selected':'') + (hasMid?' has-mid':'');
-  row.dataset.id = node.id;
-  row.onclick = () => { flushIntent(); selectNode(node.id); };
-
-  const ind = document.createElement('div');
-  ind.className = 'tree-indent';
-  ind.style.width = (depth * 14 + 8) + 'px';
-
-  const arr = document.createElement('div');
-  arr.className = 'tree-arrow' + (hasKids ? (isOpen?' open':'') : ' leaf');
-  arr.textContent = '▶';
-  if (hasKids) arr.onclick = e => toggleExpand(node.id, e);
-
-  const dot = document.createElement('div');
-  dot.className = 'tree-dot';
-
-  const col = document.createElement('div');
-  col.className = 'tree-col';
-
-  const lbl = document.createElement('div');
-  const displayText = node.label || (node.intent ? node.intent.slice(0, 40) : '');
-  lbl.className = 'tree-label' + (displayText ? '' : ' empty');
-  lbl.textContent = displayText || 'empty';
-  col.appendChild(lbl);
-
-  if (hasMid) {
-    const owns = document.createElement('div');
-    owns.className = 'tree-owns';
-    owns.textContent = owned.map(s => s.name || s.keyword).join(' · ');
-    col.appendChild(owns);
-  }
-
-  const acts = document.createElement('div');
-  acts.className = 'tree-acts';
-
-  const addBtn = document.createElement('button');
-  addBtn.className = 'tree-btn';
-  addBtn.textContent = '+';
-  addBtn.title = 'Add child (Tab)';
-  addBtn.onclick = e => { e.stopPropagation(); flushIntent(); selectNode(node.id); addChild(); };
-
-  const delBtn = document.createElement('button');
-  delBtn.className = 'tree-btn del';
-  delBtn.textContent = '×';
-  delBtn.onclick = e => { e.stopPropagation(); selId = node.id; requestDelete(); };
-
-  acts.append(addBtn, delBtn);
-  row.append(ind, arr, dot, col, acts);
-  wrap.appendChild(row);
-
-  if (hasKids) {
-    const kids = document.createElement('div');
-    kids.className = 'tree-children' + (isOpen ? ' open' : '');
-    node.children.forEach(cid => { const cn = byId(cid); if (cn) kids.appendChild(buildRow(cn, depth+1)); });
-    wrap.appendChild(kids);
-  }
-
-  return wrap;
-}
-
-// ── Compile ───────────────────────────────────────────────────────────────────
-async function startCompileMid() {
-  if (!selId || !project) return;
-  const node = byId(selId);
-  if (!node || !node.intent.trim()) { setStatus('Write an intent first', 'error'); return; }
-
-  if (sections.length > 0) {
-    try {
-      const r = await fetch('/check/overlaps', {
-        method: 'POST', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ node_label: node.label||'', node_intent: node.intent, existing_sections: sections })
-      });
-      const d = await r.json();
-      const real = (d.overlaps||[]).filter(o => o.current_owner !== node.id);
-      if (real.length > 0) { showConflictModal(node, real); return; }
-    } catch(e) { /* skip */ }
-  }
-
-  doCompileNode(node);
-}
-
-async function regenAll() {
-  if (!project || !project.nodes.length) return;
-  sections = [];
-  for (const node of project.nodes) {
-    if (node.intent.trim()) await doCompileNode(node);
-  }
-}
-
-async function doCompileNode(node) {
-  if (!node) return;
-  setGenerating(true, `Updating "${node.label || node.intent.slice(0,20)}"…`);
+  setGenerating(true, 'Compiling Mid…');
   switchTab('mid');
 
   const streamEl = document.getElementById('mid-stream');
@@ -984,20 +873,26 @@ async function doCompileNode(node) {
   cursor.className = 'stream-cursor';
   streamEl.appendChild(cursor);
 
-  const row = document.querySelector(`.tree-row[data-id="${node.id}"]`);
-  if (row) row.classList.add('generating');
-
-  const resp = await fetch('/compile/mid', {
-    method: 'POST', headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({ project_name: project.name, node, existing_sections: sections })
-  });
-  if (!resp.ok) { setGenerating(false); setStatus('Compile failed', 'error'); return; }
-
-  currentReader = resp.body.getReader();
-  const dec = new TextDecoder();
-  let buf = ''; let tokenCount = 0;
+  const body = {
+    project_name: project.name,
+    prompt,
+    target_part_id: targetPartId || null,
+    target_section_ids: targetSectionIds,
+    existing_sections: sections,
+    parts
+  };
 
   try {
+    const resp = await fetch('/compile/mid', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    });
+    if (!resp.ok) { setGenerating(false); setStatus('Compile failed', 'error'); return; }
+
+    currentReader = resp.body.getReader();
+    const dec = new TextDecoder();
+    let buf = ''; let tokenCount = 0;
+
     while (true) {
       const {done, value} = await currentReader.read();
       if (done) break;
@@ -1016,15 +911,29 @@ async function doCompileNode(node) {
           }
           if (obj.saved) {
             sections = obj.sections;
-            project.nodes.forEach(n => { n.owns = sections.filter(s => s.owner===n.id).map(s => s.id); });
+            parts    = obj.parts || parts;
+
+            // Append history entry
+            if (obj.history_entry) {
+              history.push(obj.history_entry);
+              if (historyOpen) renderHistory();
+            }
+
             streamEl.style.display = 'none';
             viewerEl.style.display = '';
-            renderMid(); renderStruct(); renderTree();
-            updateSidebarHeader();
-            if (selId) updateOwnsHint(byId(selId));
+            renderMid(); renderStruct();
+            updateSidebarHeader(); updateStatBar();
             showCached(true);
-            setGenerating(false); updateButtons(); updateNodeCount();
-            setStatus(`"${node.label || 'node'}" updated`);
+            setGenerating(false); updateButtons();
+            setStatus('Mid updated');
+
+            // Clear prompt after successful compile
+            document.getElementById('prompt-ta').value = '';
+            document.getElementById('btn-compile-prompt').disabled = true;
+
+            if (obj.affected && obj.affected.length > 0) {
+              showAffectedNotification(obj.affected);
+            }
           }
           if (obj.error) throw new Error(obj.error);
         } catch(e) { if (e.message) throw e; }
@@ -1032,10 +941,9 @@ async function doCompileNode(node) {
     }
   } catch(e) {
     streamEl.style.display = 'none'; viewerEl.style.display = '';
-    setGenerating(false); setStatus('Error: ' + e.message, 'error'); updateButtons();
+    setGenerating(false); setStatus('Error: ' + e.message, 'error');
   } finally {
     currentReader = null;
-    if (row) row.classList.remove('generating');
   }
 }
 
@@ -1048,19 +956,24 @@ async function compileCode() {
   const streamEl = document.getElementById('code-stream');
   const codeEl   = document.getElementById('code-out');
   streamEl.textContent = ''; streamEl.style.display = 'block'; codeEl.style.display = 'none';
-  const cursor = document.createElement('span'); cursor.className = 'stream-cursor'; streamEl.appendChild(cursor);
-
-  const resp = await fetch('/compile/code', {
-    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({mid: midText})
-  });
-  if (!resp.ok) { setGenerating(false); setStatus('Error', 'error'); return; }
-
-  currentReader = resp.body.getReader();
-  const dec = new TextDecoder(); let buf = ''; let full = [];
+  const cursor = document.createElement('span');
+  cursor.className = 'stream-cursor';
+  streamEl.appendChild(cursor);
 
   try {
+    const resp = await fetch('/compile/code', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ mid: midText })
+    });
+    if (!resp.ok) { setGenerating(false); setStatus('Code gen failed', 'error'); return; }
+
+    currentReader = resp.body.getReader();
+    const dec = new TextDecoder();
+    let buf = ''; let full = []; let tokenCount = 0;
+
     while (true) {
-      const {done, value} = await currentReader.read(); if (done) break;
+      const {done, value} = await currentReader.read();
+      if (done) break;
       buf += dec.decode(value, {stream:true});
       const lines = buf.split('\n'); buf = lines.pop();
       for (const line of lines) {
@@ -1069,317 +982,386 @@ async function compileCode() {
         try {
           const obj = JSON.parse(raw);
           if (obj.token) {
+            tokenCount++;
+            document.getElementById('stat-token-count').textContent = tokenCount + ' tokens';
             full.push(obj.token);
             streamEl.insertBefore(document.createTextNode(obj.token), cursor);
             streamEl.scrollTop = streamEl.scrollHeight;
           }
           if (obj.done) {
-            let code = obj.full || full.join('');
-            if (code.includes('```html')) code = code.split('```html')[1].split('```')[0].trim();
-            else if (code.includes('```')) code = code.split('```')[1].split('```')[0].trim();
-            const fname = (project?.name || 'app').replace(/ /g,'_').toLowerCase() + '.html';
-            codeFiles[fname] = code;
-            saveCodeFile(fname, code);
-            streamEl.style.display = 'none'; codeEl.style.display = '';
-            codeEl.textContent = code;
-            document.getElementById('preview').srcdoc = code;
+            const code = (obj.full || full.join('')).trim();
+            const clean = code.replace(/^```html\s*/i,'').replace(/```\s*$/,'').trim();
+            const fname = (project.name.replace(/ /g,'_').toLowerCase()) + '.html';
+            codeFiles[fname] = clean;
+            activeCodeFile = fname;
+
+            await fetch('/projects/code', {
+              method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({project_name:project.name, filename:fname, content:clean})
+            });
+
+            streamEl.style.display = 'none';
+            codeEl.style.display = '';
+            codeEl.textContent = clean;
+            document.getElementById('preview').srcdoc = clean;
             renderFileTree();
-            setGenerating(false); updateButtons(); setStatus('Code generated');
-            setTimeout(() => switchTab('preview'), 200);
+            setGenerating(false); updateButtons();
+            setStatus('Code generated');
           }
           if (obj.error) throw new Error(obj.error);
         } catch(e) { if (e.message) throw e; }
       }
     }
   } catch(e) {
-    streamEl.style.display = 'none'; codeEl.style.display = '';
-    setGenerating(false); setStatus('Error: ' + e.message, 'error'); updateButtons();
-  } finally { currentReader = null; }
-}
-
-async function saveCodeFile(filename, content) {
-  if (!project) return;
-  try {
-    await fetch('/projects/code', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ project_name: project.name, filename, content })
-    });
-  } catch(e) { console.warn('Code save failed', e); }
-}
-
-// ── File tree sidebar ─────────────────────────────────────────────────────────
-function renderFileTree() {
-  const wrap = document.getElementById('file-wrap');
-  const files = Object.keys(codeFiles);
-  if (!files.length) {
-    wrap.innerHTML = '<div class="file-empty">Generate code to<br>see output files.</div>';
-    return;
+    document.getElementById('code-stream').style.display = 'none';
+    document.getElementById('code-out').style.display = '';
+    setGenerating(false); setStatus('Error: ' + e.message, 'error');
+  } finally {
+    currentReader = null;
   }
-  wrap.innerHTML = '';
-  files.forEach(fname => {
-    const item = document.createElement('div');
-    item.className = 'file-item' + (fname === activeCodeFile ? ' active' : '');
-    const size = Math.round(codeFiles[fname].length / 1024 * 10) / 10;
-    item.innerHTML = `<span class="file-icon">◻</span><span class="file-name">${esc(fname)}</span><span class="file-size">${size}kb</span>`;
-    item.onclick = () => {
-      activeCodeFile = fname;
-      document.getElementById('code-out').textContent = codeFiles[fname];
-      renderFileTree();
-    };
-    wrap.appendChild(item);
-  });
 }
 
-// ── Mid render (v3 document style) ───────────────────────────────────────────
-function sectionsToText(secs) {
-  return secs.map(s =>
-    [s.keyword+': '+s.name, 'OWNER: '+s.owner, 'INTENT: '+s.intent_tag, '---', s.body.trim()].join('\n')
-  ).join('\n\n');
+// Surgical code recompile for one section
+async function surgicalRecompile(sectionId) {
+  const section = sections.find(s => s.id === sectionId);
+  if (!section || !activeCodeFile || !codeFiles[activeCodeFile]) return;
+  setGenerating(true, 'Recompiling section…');
+  try {
+    const resp = await fetch('/compile/code/surgical', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        project_name: project.name,
+        section,
+        all_sections: sections,
+        current_code: codeFiles[activeCodeFile]
+      })
+    });
+    currentReader = resp.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+    while (true) {
+      const {done, value} = await currentReader.read();
+      if (done) break;
+      buf += dec.decode(value, {stream:true});
+      const lines = buf.split('\n'); buf = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data:')) continue;
+        const raw = line.slice(5).trim(); if (!raw) continue;
+        try {
+          const obj = JSON.parse(raw);
+          if (obj.done && obj.code) {
+            codeFiles[activeCodeFile] = obj.code;
+            document.getElementById('code-out').textContent = obj.code;
+            document.getElementById('preview').srcdoc = obj.code;
+            await fetch('/projects/code', {
+              method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({project_name:project.name, filename:activeCodeFile, content:obj.code})
+            });
+            setStatus('Section recompiled');
+          }
+        } catch(e) {}
+      }
+    }
+  } catch(e) { setStatus('Surgical recompile failed', 'error'); }
+  finally { currentReader = null; setGenerating(false); updateButtons(); }
 }
 
-// Group sections by owner (preserving node order)
-function groupSectionsByOwner() {
-  const ownerOrder = [];
-  const ownerMap = {};
-  sections.forEach(s => {
-    if (!ownerMap[s.owner]) { ownerMap[s.owner] = []; ownerOrder.push(s.owner); }
-    ownerMap[s.owner].push(s);
-  });
-  return { ownerOrder, ownerMap };
-}
+// ── Mid render ────────────────────────────────────────────────────────────────
+
+const KEYWORD_COLORS = {
+  STATE: 'var(--c-state)', TYPE: 'var(--c-type)',
+  STRUCTURE: 'var(--c-structure)', WHEN: 'var(--c-when)'
+};
 
 function renderMid() {
-  const viewer = document.getElementById('mid-viewer');
+  const el = document.getElementById('mid-viewer');
   if (!sections.length) {
-    viewer.innerHTML = '<div class="mid-empty"><div class="mid-empty-icon">◈</div><div>Select a node and write your intent.<br>Press <strong>Enter</strong> to compile.</div></div>';
+    el.innerHTML = '<div class="mid-empty"><div class="mid-empty-icon">◈</div><div>Write a prompt on the right.<br>Press <strong>Enter</strong> to compile.</div></div>';
     return;
   }
 
-  const { ownerOrder, ownerMap } = groupSectionsByOwner();
-  const h = [];
-  h.push('<div class="mid-content">');
+  // Group by part_id in part order
+  const partOrder = parts.length
+    ? parts.filter(p => sections.some(s => s.part_id === p.id))
+    : [{id:'__all', name:'', status:'draft'}];
+
+  const partMap = {};
+  sections.forEach(s => {
+    const pid = s.part_id || '__all';
+    (partMap[pid] = partMap[pid] || []).push(s);
+  });
 
   // Doc header
-  const kwCounts = {};
-  sections.forEach(s => { kwCounts[s.keyword] = (kwCounts[s.keyword]||0)+1; });
-  const tagList = Object.entries(kwCounts).map(([k,v]) => `<span class="mid-doc-tag">${v} ${k.toLowerCase()}</span>`).join('');
-  const nodeCount = ownerOrder.filter(o => o && o !== 'orphaned').length;
+  const totalParts = partOrder.length;
+  const totalSecs  = sections.length;
+  const projName   = project?.name || '';
 
-  h.push(`<div class="mid-doc-header" id="mid-doc-top">`);
-  h.push(`<div class="mid-doc-eyebrow">${sections.length} sections · ${nodeCount} parts</div>`);
-  h.push(`<div class="mid-doc-title">${esc(project?.name||'Application')}</div>`);
-  h.push(`<div class="mid-doc-tags">${tagList}</div>`);
+  let h = [];
+  h.push(`<div class="mid-doc-header">`);
+  h.push(`<div class="mid-doc-eyebrow">${totalSecs} sections · ${totalParts} parts</div>`);
+  h.push(`<div class="mid-doc-title">${esc(projName)}</div>`);
   h.push(`</div>`);
 
-  // Parts
-  let sectionGlobalIdx = 0;
-  ownerOrder.forEach((ownerId, partIdx) => {
-    const ownerNode = byId(ownerId);
-    const ownerLabel = ownerNode ? (ownerNode.label || ownerNode.intent?.slice(0,30) || ownerId) : (ownerId==='orphaned'?'Orphaned':'Unknown');
-    const ownerIntent = ownerNode ? ownerNode.intent : '';
-    const partSections = ownerMap[ownerId];
-    const isOrphaned = ownerId === 'orphaned';
+  partOrder.forEach((part, partIdx) => {
+    const secs = partMap[part.id] || [];
+    if (!secs.length) return;
 
-    // Part divider (not before first)
-    if (partIdx > 0) h.push(`<hr class="mid-part-div">`);
+    const status = part.status || 'draft';
+    const partColor = status === 'verified' ? 'var(--c-state)'
+                    : status === 'affected'  ? 'var(--c-warn)'
+                    : 'var(--border2)';
+    const isTargeted = targetPartId === part.id;
 
-    // Part header
-    const partColor = isOrphaned ? 'var(--text-4)' : 'var(--c-accent)';
-    h.push(`<div class="mid-part-header" id="part-${ownerId}" style="border-left-color:${partColor}">`);
-    h.push(`<div class="mid-part-eyebrow">Part ${partIdx+1} of ${ownerOrder.length}</div>`);
-    h.push(`<div class="mid-part-title">${esc(ownerLabel)}</div>`);
-    if (ownerIntent) h.push(`<p class="mid-part-desc">${esc(ownerIntent)}</p>`);
+    h.push(`<div class="mid-part-header" id="part-${part.id}"
+      style="border-left-color:${partColor}${isTargeted?';box-shadow:inset 0 0 0 1px rgba(176,144,220,.25)':''}"
+      onclick="clickPart('${part.id}')" title="Click to target this part">`);
+    h.push(`<div style="display:flex;align-items:center;margin-bottom:7px">`);
+    h.push(`<div class="mid-part-eyebrow" style="margin-bottom:0">Part ${partIdx+1} of ${totalParts}</div>`);
+    h.push(`<span class="part-badge part-badge-${status}">${status}</span>`);
+    h.push(`<button class="part-verify-btn" onclick="event.stopPropagation();verifyPart('${part.id}')" title="Mark as verified">✓ verify</button>`);
+    h.push(`</div>`);
+    h.push(`<div class="mid-part-title">${esc(part.name)}</div>`);
     h.push(`</div>`);
 
-    // Sections within this part
-    partSections.forEach((s, secIdx) => {
-      sectionGlobalIdx++;
-      const partNum = partIdx + 1;
-      const secNum  = secIdx + 1;
-      const numLabel = `${partNum}.${secNum}`;
+    secs.forEach((s, si) => {
+      const kcolor = KEYWORD_COLORS[s.keyword] || 'var(--text-3)';
+      const secNum = `${partIdx+1}.${si+1}`;
+      const isSecTargeted = targetSectionIds.includes(s.id);
 
-      if (secIdx > 0) h.push(`<hr class="mid-section-div">`);
-
-      h.push(`<div class="mid-section" id="${s.id}">`);
-      h.push(`<div class="mid-sec-num-row">`);
-      h.push(`<span class="mid-sec-num">${numLabel}</span>`);
-      h.push(`<span class="mid-kw kw-${s.keyword.toLowerCase()}">${s.keyword}</span>`);
-      const ownerLabelShort = ownerNode ? (ownerNode.label || ownerNode.intent?.split(' ').slice(0,4).join(' ') || s.owner) : s.owner;
-      h.push(`<span class="mid-owner-tag" onclick="jumpToOwner('${s.owner}')" title="Jump to node: ${esc(ownerLabelShort)}">⊕ ${esc(ownerLabelShort)}</span>`);
+      h.push(`<div class="mid-section${isSecTargeted?' mid-section-targeted':''}"
+        id="sec-${s.id}"
+        onclick="clickSection('${s.id}', '${part.id}')"
+        title="Click to target this section">`);
+      h.push(`<div class="mid-sec-header">`);
+      h.push(`<span class="mid-sec-num">${secNum}</span>`);
+      h.push(`<span class="mid-keyword-badge" style="--kw-color:${kcolor}">${s.keyword}</span>`);
+      h.push(`<span class="mid-sec-name">${esc(s.name)}</span>`);
+      if (s.code_marker) {
+        h.push(`<button class="mid-regen-btn" onclick="event.stopPropagation();surgicalRecompile('${s.id}')" title="Recompile this section's code">↻</button>`);
+      }
       h.push(`</div>`);
-      if (s.name) h.push(`<div class="mid-sec-name">${esc(s.name)}</div>`);
-      if (s.intent_tag) h.push(`<div class="mid-intent-tag">${esc(s.intent_tag)}</div>`);
-      h.push(`<hr class="mid-rule">`);
-      h.push(`<div class="mid-prose">${prose(s.body)}</div>`);
+      h.push(`<div class="mid-intent-tag">↑ ${esc(s.intent_tag)}</div>`);
+      h.push(`<hr class="mid-hr">`);
+      h.push(`<div class="mid-body">${esc(s.body)}</div>`);
       h.push(`</div>`);
     });
   });
 
-  h.push('</div>');
-  viewer.innerHTML = h.join('');
-  if (selId) highlightOwnedSections(selId);
-  setupMidScrollObserver();
+  el.innerHTML = h.join('');
 }
 
-function jumpToOwner(ownerId) {
-  if (!ownerId || ownerId==='orphaned') return;
-  selectNode(ownerId);
-  setTimeout(() => {
-    const row = document.querySelector(`.tree-row[data-id="${ownerId}"]`);
-    if (row) row.scrollIntoView({behavior:'smooth',block:'nearest'});
-  }, 50);
+function clickPart(partId) {
+  if (targetPartId === partId && targetSectionIds.length === 0) {
+    clearTarget();
+  } else {
+    targetSectionIds = [];
+    setTarget(partId, [], parts.find(p=>p.id===partId)?.name || partId);
+  }
+  renderMid(); // re-render to update highlight
+  document.getElementById('prompt-ta').focus();
 }
 
-function prose(text) {
-  return (text||'').trim().split(/\n{2,}/).map(p => {
-    const c = p.trim(); if (!c) return '';
-    const hi = esc(c)
-      .replace(/&quot;([^&]+)&quot;/g, '<em class="qs">"$1"</em>')
-      .replace(/\b([a-z][a-z0-9]*(?:_[a-z0-9]+)+)\b/g, '<span class="v">$1</span>');
-    return `<p>${hi}</p>`;
-  }).join('');
+function clickSection(sectionId, partId) {
+  // Toggle section in targetSectionIds within the part
+  if (targetPartId !== partId) {
+    targetSectionIds = [sectionId];
+    setTarget(partId, [sectionId]);
+  } else {
+    if (targetSectionIds.includes(sectionId)) {
+      targetSectionIds = targetSectionIds.filter(id => id !== sectionId);
+    } else {
+      targetSectionIds = [...targetSectionIds, sectionId];
+    }
+    setTarget(partId, targetSectionIds);
+  }
+  renderMid();
+  document.getElementById('prompt-ta').focus();
 }
 
-// ── Structure sidebar (v3 style) ──────────────────────────────────────────────
-const COLORS = { STATE:'var(--c-state)', TYPE:'var(--c-type)', STRUCTURE:'var(--c-structure)', WHEN:'var(--c-when)' };
-const tip = document.getElementById('struct-tip');
+// ── Structure sidebar ─────────────────────────────────────────────────────────
 
 function renderStruct() {
   const wrap = document.getElementById('struct-wrap');
-  updateSidebarHeader();
+  const empty = document.getElementById('struct-empty');
+  const footer = document.getElementById('sidebar-footer');
 
   if (!sections.length) {
-    wrap.innerHTML = '<div class="sidebar-empty">Compile a node to<br>see structure.</div>';
+    if (empty) empty.style.display = '';
+    if (footer) footer.style.display = 'none';
+    wrap.innerHTML = '<div class="sidebar-empty" id="struct-empty">Compile a prompt to<br>see structure.</div>';
     return;
   }
 
   wrap.innerHTML = '';
-  const { ownerOrder, ownerMap } = groupSectionsByOwner();
+  if (empty) empty.style.display = 'none';
 
-  // Intro nav item
-  const introLink = document.createElement('span');
-  introLink.className = 'nav-group-label';
-  introLink.textContent = 'Overview';
-  wrap.appendChild(introLink);
+  const partOrder = parts.length
+    ? parts.filter(p => sections.some(s => s.part_id === p.id))
+    : [{id:'__all', name:'All', status:'draft'}];
 
-  const introItem = document.createElement('div');
-  introItem.className = 'nav-intro';
-  introItem.innerHTML = `<span style="font-family:var(--font-mono);font-size:9px;color:var(--text-4);min-width:20px">—</span><span>Introduction</span>`;
-  introItem.onclick = () => {
-    switchTab('mid');
-    setTimeout(() => {
-      const el = document.getElementById('mid-doc-top');
-      if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
-    }, 50);
-  };
-  wrap.appendChild(introItem);
+  partOrder.forEach((part, partIdx) => {
+    const secs = sections.filter(s => s.part_id === part.id);
+    if (!secs.length) return;
 
-  const partsLabel = document.createElement('span');
-  partsLabel.className = 'nav-group-label';
-  partsLabel.textContent = 'Parts';
-  wrap.appendChild(partsLabel);
+    const status = part.status || 'draft';
+    const statusDotColor = status === 'verified' ? 'var(--c-state)'
+                         : status === 'affected'  ? 'var(--c-warn)'
+                         : 'var(--text-4)';
+    const firstKw = secs[0]?.keyword || 'STATE';
+    const partColor = KEYWORD_COLORS[firstKw] || 'var(--text-4)';
 
-  ownerOrder.forEach((ownerId, partIdx) => {
-    const ownerNode = byId(ownerId);
-    const ownerLabel = ownerNode ? (ownerNode.label || ownerNode.intent?.slice(0,24) || ownerId) : (ownerId==='orphaned'?'Orphaned':'?');
-    const ownerIntent = ownerNode?.intent || '';
-    const partSections = ownerMap[ownerId];
-
-    // Determine part color from first section's keyword
-    const firstKw = partSections[0]?.keyword || 'STATE';
-    const partColor = COLORS[firstKw] || 'var(--text-4)';
-
-    // Part toggle
     const toggle = document.createElement('div');
     toggle.className = 'part-toggle open';
     toggle.style.setProperty('--item-color', partColor);
-    toggle.dataset.intent = ownerIntent;
     toggle.innerHTML = `
       <span class="part-icon" style="--item-color:${partColor}"></span>
-      <span>Part ${partIdx+1} · ${esc(ownerLabel)}</span>
+      <span>Part ${partIdx+1} · ${esc(part.name)}</span>
+      <span style="width:6px;height:6px;border-radius:50%;background:${statusDotColor};flex-shrink:0;margin-left:4px;opacity:.8"></span>
       <span class="part-arrow">▶</span>`;
-    toggle.onclick = () => {
-      toggle.classList.toggle('open');
-      children.classList.toggle('open');
-    };
-    // Jump to part on label click
-    toggle.addEventListener('click', (e) => {
-      switchTab('mid');
-      setTimeout(() => {
-        const el = document.getElementById('part-'+ownerId);
-        if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
-      }, 50);
-    });
-    wrap.appendChild(toggle);
 
     const children = document.createElement('div');
     children.className = 'part-children open';
 
-    partSections.forEach((s, secIdx) => {
-      const color = COLORS[s.keyword] || 'var(--text-4)';
-      const numLabel = `${partIdx+1}.${secIdx+1}`;
+    secs.forEach((s, si) => {
+      const kcolor = KEYWORD_COLORS[s.keyword] || 'var(--text-3)';
       const item = document.createElement('div');
       item.className = 'nav-item';
-      item.style.setProperty('--item-color', color);
-      item.dataset.intent = s.intent_tag || '';
-      item.dataset.secid  = s.id;
+      if (targetSectionIds.includes(s.id)) item.style.color = 'var(--c-intent)';
+      item.dataset.sectionId = s.id;
       item.innerHTML = `
-        <span class="nav-dot" style="--item-color:${color}"></span>
-        <span class="nav-num">${numLabel}</span>
-        <span class="nav-name">${esc(s.name || s.keyword)}</span>`;
-      item.onclick = () => {
-        switchTab('mid');
-        setTimeout(() => {
-          const el = document.getElementById(s.id);
-          if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
-        }, 50);
-      };
+        <span class="nav-dot" style="--dot-color:${kcolor}">${partIdx+1}.${si+1}</span>
+        <span class="nav-name">${esc(s.name)}</span>`;
+      item.onclick = () => clickSection(s.id, part.id);
       children.appendChild(item);
     });
 
+    toggle.onclick = () => {
+      toggle.classList.toggle('open');
+      children.classList.toggle('open');
+    };
+
+    wrap.appendChild(toggle);
     wrap.appendChild(children);
   });
 
-  setupStructTips();
+  if (footer) {
+    footer.style.display = '';
+    footer.textContent = sections.length + ' sections · ' + parts.length + ' parts';
+  }
 }
 
-function setupStructTips() {
-  document.querySelectorAll('[data-intent]').forEach(el => {
-    el.addEventListener('mouseenter', () => {
-      const intent = el.dataset.intent; if (!intent) return;
-      tip.textContent = '"' + intent + '"';
-      tip.classList.add('visible');
-      const r = el.getBoundingClientRect();
-      const lw = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--left-w'))||272;
-      tip.style.left = (lw + 10) + 'px';
-      tip.style.right = 'auto';
-      let top = r.top + r.height/2 - 18;
-      top = Math.max(8, Math.min(top, window.innerHeight - 80));
-      tip.style.top = top + 'px';
-    });
-    el.addEventListener('mouseleave', () => tip.classList.remove('visible'));
-  });
+// ── File tree sidebar ─────────────────────────────────────────────────────────
+
+function renderFileTree() {
+  const wrap = document.getElementById('file-wrap');
+  if (!Object.keys(codeFiles).length) {
+    wrap.innerHTML = '<div class="file-empty">Generate code to<br>see output files.</div>';
+    return;
+  }
+  wrap.innerHTML = Object.keys(codeFiles).map(fname =>
+    `<div class="file-item${fname===activeCodeFile?' active':''}" onclick="selectFile('${esc(fname)}')">
+      <span class="file-icon">⌗</span> ${esc(fname)}
+    </div>`
+  ).join('');
 }
 
-function setupMidScrollObserver() {
-  const viewer = document.getElementById('mid-viewer');
-  const io = new IntersectionObserver(entries => {
-    entries.forEach(e => {
-      if (e.isIntersecting) {
-        document.querySelectorAll('.nav-item[data-secid]').forEach(i => i.classList.remove('active'));
-        document.querySelectorAll('.nav-intro').forEach(i => i.classList.remove('active'));
-        // Check if it's the doc header
-        if (e.target.id === 'mid-doc-top') {
-          document.querySelectorAll('.nav-intro').forEach(i => i.classList.add('active'));
-          return;
-        }
-        const match = document.querySelector(`.nav-item[data-secid="${e.target.id}"]`);
-        if (match) match.classList.add('active');
+function selectFile(name) {
+  activeCodeFile = name;
+  document.getElementById('code-out').textContent = codeFiles[name] || '';
+  document.getElementById('preview').srcdoc = codeFiles[name] || '';
+  renderFileTree();
+}
+
+// ── Parts system ──────────────────────────────────────────────────────────────
+
+let pendingAffected = [];
+
+function showAffectedNotification(affected) {
+  pendingAffected = affected;
+  const bar = document.getElementById('affected-bar');
+  const txt = document.getElementById('affected-bar-text');
+  const names = affected.map(a => `<strong>${esc(a.part_name)}</strong>`).join(', ');
+  txt.innerHTML = `Verified ${affected.length === 1 ? 'part' : 'parts'} affected: ${names}`;
+  bar.style.display = 'flex';
+}
+
+function dismissAffected() {
+  document.getElementById('affected-bar').style.display = 'none';
+  pendingAffected = [];
+}
+
+function showDiffModal() {
+  if (!pendingAffected.length) return;
+  const aff = pendingAffected[0];
+  document.getElementById('diff-modal-sub').textContent =
+    `"${aff.part_name}" was modified by this compilation.`;
+  const diffEl = document.getElementById('diff-view');
+  diffEl.innerHTML = aff.diff.split('\n').map(line => {
+    if (line.startsWith('+') && !line.startsWith('+++'))
+      return `<span class="diff-add">${esc(line)}</span>`;
+    if (line.startsWith('-') && !line.startsWith('---'))
+      return `<span class="diff-del">${esc(line)}</span>`;
+    if (line.startsWith('@@'))
+      return `<span class="diff-hdr">${esc(line)}</span>`;
+    return esc(line);
+  }).join('\n');
+  openModal('modal-diff');
+}
+
+async function revertAffected() {
+  if (!pendingAffected.length || !project) return;
+  document.getElementById('affected-bar').style.display = 'none';
+  for (const aff of pendingAffected) {
+    try {
+      const r = await fetch('/projects/parts/revert', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ project_name: project.name, part_id: aff.part_id, parts, sections })
+      });
+      const d = await r.json();
+      if (d.saved) {
+        sections = d.sections; parts = d.parts;
+        renderMid(); renderStruct(); updateSidebarHeader();
+        setStatus(`Reverted: ${aff.part_name}`, 'ok');
       }
-    });
-  }, { root: viewer, rootMargin: '-10% 0px -70% 0px' });
+    } catch(e) { setStatus('Revert failed', 'error'); }
+  }
+  pendingAffected = [];
+}
 
-  document.querySelectorAll('.mid-section[id], .mid-doc-header[id]').forEach(s => io.observe(s));
+async function acceptAffected() {
+  if (!pendingAffected.length || !project) return;
+  document.getElementById('affected-bar').style.display = 'none';
+  for (const aff of pendingAffected) {
+    try {
+      const r = await fetch('/projects/parts/verify', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ project_name: project.name, part_id: aff.part_id, sections, parts })
+      });
+      const d = await r.json();
+      if (d.saved) { parts = d.parts; renderStruct(); renderMid(); setStatus(`Re-verified: ${aff.part_name}`); }
+    } catch(e) { setStatus('Verify failed', 'error'); }
+  }
+  pendingAffected = [];
+}
+
+async function verifyPart(partId) {
+  if (!project) return;
+  try {
+    const r = await fetch('/projects/parts/verify', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ project_name: project.name, part_id: partId, sections, parts })
+    });
+    const d = await r.json();
+    if (d.saved) {
+      parts = d.parts;
+      renderStruct(); renderMid();
+      setStatus(`Verified: ${parts.find(p=>p.id===partId)?.name || partId}`);
+    }
+  } catch(e) { setStatus('Verify failed', 'error'); }
+}
+
+function getPartStatus(partId) {
+  return parts.find(p => p.id === partId)?.status || 'draft';
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
@@ -1483,6 +1465,34 @@ async function saveSettings() {
   } catch(e) { setStatus('Settings save failed', 'error'); }
 }
 </script>
+
+<!-- Affected notification -->
+<div id="affected-bar" style="display:none" class="affected-bar">
+  <span class="affected-bar-icon">⚠</span>
+  <div class="affected-bar-text" id="affected-bar-text"></div>
+  <div class="affected-bar-acts">
+    <button class="btn btn-sm" onclick="showDiffModal()">View diff</button>
+    <button class="btn btn-sm" style="color:var(--c-warn);border-color:rgba(224,176,80,.3)" onclick="revertAffected()">Revert</button>
+    <button class="btn btn-sm" onclick="dismissAffected()">Dismiss</button>
+  </div>
+</div>
+
+<!-- Diff modal -->
+<div class="modal-bg" id="modal-diff">
+  <div class="modal" style="width:560px;max-width:95vw">
+    <div class="modal-title">⚠ Verified part affected</div>
+    <div class="modal-sub" id="diff-modal-sub"></div>
+    <div class="diff-view" id="diff-view"></div>
+    <div class="modal-sub" style="font-size:11px;color:var(--text-3)">
+      Revert restores this part to its last verified snapshot. The compilation that caused this will be kept for all other parts.
+    </div>
+    <div class="modal-acts">
+      <button class="btn" onclick="closeModal('modal-diff')">Dismiss</button>
+      <button class="btn btn-warn" onclick="revertAffected(); closeModal('modal-diff')">↩ Revert part</button>
+      <button class="btn btn-primary" onclick="acceptAffected(); closeModal('modal-diff')">✓ Accept &amp; re-verify</button>
+    </div>
+  </div>
+</div>
 
 <!-- Settings overlay -->
 <div class="settings-overlay" id="settings-overlay" onclick="closeSettings()"></div>

@@ -1,5 +1,0 @@
-STATE: ingredient_list
-OWNER: n0blfs
-INTENT: the app stores a list of 10 standard cooking ingredients
----
-The application keeps a stable list of ingredients, specifically a list of 10 standard cooking ingredients. This list starts as empty when the page first loads. Whenever the user adds an ingredient, a new item is appended to the ingredient_list. Conversely, when a user removes an ingredient, that item is immediately removed from the list.

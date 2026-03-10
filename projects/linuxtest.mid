@@ -1,0 +1,44 @@
+PART: todo_app_actions
+NAME: todo_app_actions
+STATUS: draft
+
+WHEN: User Adds a New Task
+MARKER: add_task
+INTENT: The action that allows the user to create a new task in the to-do app.
+---
+When the user selects the "Add Task" option, a form is presented for entering the task details. The user enters the title, description, and selects whether the task is completed or not. After the user submits the form, the new task is added to the task list with an auto-incrementing identifier.
+
+WHEN: User Edits an Existing Task
+MARKER: edit_task
+INTENT: The action that allows the user to modify an existing task in the to-do app.
+---
+When the user selects a task in the task list, the details for that task are displayed in an edit form. The user can modify the title, description, and completion status of the task. After the user submits the edited task, the changes are saved and reflected in the task list.
+
+WHEN: User Deletes a Task
+MARKER: delete_task
+INTENT: The action that allows the user to remove a task from the to-do app.
+---
+When the user selects the "Delete" option for a task, the task is removed from the task list and cannot be recovered. A confirmation prompt is shown before the task is deleted to ensure the user's intent.
+---PART---
+
+PART: todo_app_structure
+NAME: todo_app_structure
+STATUS: draft
+
+STRUCTURE: Task List View
+MARKER: task_list
+INTENT: The layout for displaying the list of tasks in the to-do app.
+---
+The task list view consists of a scrollable list of task items. Each task item displays the task's title, description, and completion status. A checkbox is provided to toggle the completion status of each task.
+---PART---
+
+PART: todo_app_data
+NAME: todo_app_data
+STATUS: draft
+
+STATE: Task List
+MARKER: tasks
+INTENT: The list of tasks to be managed in the to-do app.
+---
+Each task has a unique identifier, a title, a description, and a completion status. The initial values for all tasks are as follows:
+- Identifier: an auto-incrementing integer. - Title: a string that describes the task briefly. - Description: a longer string that provides details about the task. - Completion Status: false by default, indicating the task is incomplete.
