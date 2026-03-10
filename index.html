@@ -382,7 +382,6 @@ body { background:var(--bg); color:var(--text); font-family:var(--font-ui); font
     <!-- Mid structure (shown on Mid tab) -->
     <div id="sidebar-mid" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
       <div class="sidebar-head" id="sidebar-head">
-        <div class="sidebar-proj-label">Mid Viewer</div>
         <div class="sidebar-proj-title" id="sidebar-proj-title">—</div>
         <div class="sidebar-proj-meta" id="sidebar-proj-meta">No project loaded</div>
       </div>
@@ -1167,9 +1166,8 @@ function renderMid() {
   const nodeCount = ownerOrder.filter(o => o && o !== 'orphaned').length;
 
   h.push(`<div class="mid-doc-header" id="mid-doc-top">`);
-  h.push(`<div class="mid-doc-eyebrow">Mid Language · ${sections.length} sections · ${nodeCount} parts</div>`);
+  h.push(`<div class="mid-doc-eyebrow">${sections.length} sections · ${nodeCount} parts</div>`);
   h.push(`<div class="mid-doc-title">${esc(project?.name||'Application')}</div>`);
-  h.push(`<p class="mid-doc-summary">Auto-generated specification. Each section below was compiled from a node in the intent tree. Review and edit your intents, then recompile to update.</p>`);
   h.push(`<div class="mid-doc-tags">${tagList}</div>`);
   h.push(`</div>`);
 
@@ -1206,6 +1204,8 @@ function renderMid() {
       h.push(`<div class="mid-sec-num-row">`);
       h.push(`<span class="mid-sec-num">${numLabel}</span>`);
       h.push(`<span class="mid-kw kw-${s.keyword.toLowerCase()}">${s.keyword}</span>`);
+      const ownerLabelShort = ownerNode ? (ownerNode.label || ownerNode.intent?.split(' ').slice(0,4).join(' ') || s.owner) : s.owner;
+      h.push(`<span class="mid-owner-tag" onclick="jumpToOwner('${s.owner}')" title="Jump to node: ${esc(ownerLabelShort)}">⊕ ${esc(ownerLabelShort)}</span>`);
       h.push(`</div>`);
       if (s.name) h.push(`<div class="mid-sec-name">${esc(s.name)}</div>`);
       if (s.intent_tag) h.push(`<div class="mid-intent-tag">${esc(s.intent_tag)}</div>`);
@@ -1422,6 +1422,8 @@ async function loadSettingsIntoPanel() {
 
   populateRole('intent', settingsCache.intent_compiler);
   populateRole('code',   settingsCache.code_compiler);
+  const vb = document.getElementById('mid-verbosity');
+  if (vb) vb.value = settingsCache.mid_verbosity || 'moderate';
 }
 
 function populateRole(role, cfg) {
@@ -1474,7 +1476,7 @@ async function saveSettings() {
   try {
     const r = await fetch('/config', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ intent_compiler: build('intent'), code_compiler: build('code') })
+      body: JSON.stringify({ intent_compiler: build('intent'), code_compiler: build('code'), mid_verbosity: document.getElementById('mid-verbosity').value })
     });
     const d = await r.json();
     if (d.saved) { closeSettings(); setStatus('Settings saved', 'ok'); }
@@ -1529,6 +1531,18 @@ async function saveSettings() {
           Requires a paid Anthropic account.<br>
           Get your key at <a href="https://console.anthropic.com" style="color:var(--c-accent)" target="_blank">console.anthropic.com</a>
         </div>
+      </div>
+    </div>
+    <!-- Mid Verbosity -->
+    <div class="settings-section">
+      <div class="settings-section-title">Mid Scope</div>
+      <div class="settings-row">
+        <div class="settings-label">Verbosity <em>— how much the model expands beyond the intent</em></div>
+        <select class="settings-select" id="mid-verbosity">
+          <option value="minimal">Minimal — only what's explicitly stated</option>
+          <option value="moderate" selected>Moderate — intent + obvious implied requirements</option>
+          <option value="free">Free — model decides scope</option>
+        </select>
       </div>
     </div>
     <!-- Code Compiler -->

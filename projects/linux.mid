@@ -1,0 +1,17 @@
+STATE: todo_list
+OWNER: nr7cjz
+INTENT: To develop a todo list app
+---
+The todo_list data stores a collection of tasks that need to be completed. Each task is represented by a unique id, title, description, due_date, and completed status. When the app is first launched, it starts with an empty todo_list.
+
+WHEN: User adds a new task
+OWNER: nr7cjz
+INTENT: To develop a todo list app
+---
+When the user interacts with the app interface to add a new task, a new entry is created in the todo_list. The new task is assigned a unique id, the title and description provided by the user are stored, the due_date is set to the date provided by the user or the current date if not provided, and the completed status is initially set to false. The updated todo_list is then displayed to the user.
+
+WHEN: User marks a task as completed
+OWNER: nr7cjz
+INTENT: To develop a todo list app
+---
+When the user marks a specific task as completed, the corresponding entry in the todo_list is updated. The completed status of the task is changed to true, and the task is moved to the bottom of the todo_list. The updated todo_list is then displayed to the user, reflecting the completed task.

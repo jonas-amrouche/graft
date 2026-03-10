@@ -19,7 +19,7 @@ os.makedirs(PROJECTS_DIR, exist_ok=True)
 
 DEFAULT_CONFIG = {
     "intent_compiler": {
-        "source": "ollama",        # "ollama" | "anthropic"
+        "source": "ollama",
         "ollama_model": "qwen2.5:3b",
         "ollama_url": "http://localhost:11434",
         "anthropic_model": "claude-sonnet-4-20250514",
@@ -31,7 +31,8 @@ DEFAULT_CONFIG = {
         "ollama_url": "http://localhost:11434",
         "anthropic_model": "claude-sonnet-4-20250514",
         "anthropic_key": ""
-    }
+    },
+    "mid_verbosity": "moderate"   # "minimal" | "moderate" | "free"
 }
 
 def load_config() -> dict:
@@ -39,11 +40,12 @@ def load_config() -> dict:
         try:
             with open(CONFIG_FILE) as f:
                 saved = json.load(f)
-            # Merge with defaults so new keys always exist
             cfg = json.loads(json.dumps(DEFAULT_CONFIG))
             for role in ["intent_compiler", "code_compiler"]:
                 if role in saved:
                     cfg[role].update(saved[role])
+            if "mid_verbosity" in saved:
+                cfg["mid_verbosity"] = saved["mid_verbosity"]
             return cfg
         except Exception:
             pass
@@ -104,6 +106,7 @@ class OverlapCheckRequest(BaseModel):
 class ConfigUpdate(BaseModel):
     intent_compiler: dict
     code_compiler: dict
+    mid_verbosity: Optional[str] = None
 
 # ── Mid file format ───────────────────────────────────────────────────────────
 
@@ -150,6 +153,8 @@ def text_to_sections(text: str, owner_id: str = "") -> list[MidSection]:
                 body_lines.append(line)
 
         body = '\n'.join(body_lines).strip()
+        body = clean_body(body)
+
         if keyword and body and len(body) > 20:
             result.append(MidSection(
                 id=f"s{i}", keyword=keyword, name=name,
@@ -169,6 +174,40 @@ def save_mid_sections(project_name: str, sections: list[MidSection]):
     safe = project_name.replace(" ", "_").lower()
     with open(os.path.join(PROJECTS_DIR, f"{safe}.mid"), "w", encoding="utf-8") as f:
         f.write(sections_to_text(sections))
+
+# ── Body cleanup: strip narrative filler ─────────────────────────────────────
+# Catches model artifacts like "Now the user can...", "At this point...", etc.
+
+FILLER_PATTERNS = [
+    r'(?i)^now[,\s]+(the\s+)?(user|app|system|interface)',
+    r'(?i)^at this point[,\s]',
+    r'(?i)^with this[,\s]+(the\s+)?(user|app|system)',
+    r'(?i)^this (means|allows|enables|lets)',
+    r'(?i)^the (user|app|system) (can now|is now able)',
+    r'(?i)^in (summary|conclusion|short)',
+    r'(?i)^overall[,\s]',
+    r'(?i)^as a result[,\s]',
+    r'(?i)^to summarize[,\s]',
+]
+_FILLER_RE = [re.compile(p) for p in FILLER_PATTERNS]
+
+def clean_body(text: str) -> str:
+    """Remove known filler/narrative sentences from model output."""
+    paragraphs = re.split(r'\n{2,}', text.strip())
+    cleaned = []
+    for para in paragraphs:
+        sentences = re.split(r'(?<=[.!?])\s+', para.strip())
+        kept = []
+        for sent in sentences:
+            s = sent.strip()
+            if not s:
+                continue
+            if any(p.match(s) for p in _FILLER_RE):
+                continue
+            kept.append(s)
+        if kept:
+            cleaned.append(' '.join(kept))
+    return '\n\n'.join(cleaned)
 
 # ── Overlap detection ─────────────────────────────────────────────────────────
 
@@ -201,15 +240,38 @@ def detect_overlaps(node_label, node_intent, existing_sections):
             })
     return sorted(overlaps, key=lambda x: x["score"], reverse=True)
 
+# ── Verbosity instructions ────────────────────────────────────────────────────
+
+VERBOSITY_HINTS = {
+    "minimal": (
+        "SCOPE: Be strictly minimal. Cover only what the intent explicitly states. "
+        "Do not add features, edge cases, or sections not directly implied by the intent phrase. "
+        "Prefer 1-2 sections total. Stop as soon as the intent is fully covered."
+    ),
+    "moderate": (
+        "SCOPE: Cover what the intent states plus obvious implied requirements "
+        "(e.g. if a form is described, include its submit behavior). "
+        "Do not invent features the intent does not mention. Aim for 2-4 sections."
+    ),
+    "free": (
+        # No scope injection — model decides
+        ""
+    ),
+}
+
 # ── Prompts ───────────────────────────────────────────────────────────────────
 
-def node_to_mid_prompt(node: IntentNode, existing_names: list[str], existing_summary: str = "") -> str:
+def node_to_mid_prompt(node: IntentNode, existing_names: list[str],
+                        existing_summary: str = "", verbosity: str = "moderate") -> str:
     existing_hint = ""
     if existing_names:
         existing_hint = f"\nAlready defined — do NOT redefine or contradict these:\n" + "\n".join(f"  - {n}" for n in existing_names)
     context_hint = ""
     if existing_summary:
         context_hint = f"\nExisting project context (read-only, for reference only):\n{existing_summary}\n"
+
+    verbosity_hint = VERBOSITY_HINTS.get(verbosity, VERBOSITY_HINTS["moderate"])
+    verbosity_block = f"\n{verbosity_hint}\n" if verbosity_hint else ""
 
     return f"""You are a Mid Language compiler. Mid is the human-readable specification layer between intent and code.
 
@@ -238,8 +300,13 @@ WHEN sections:
 - Must include: trigger, precondition (if any), every state change caused, visible feedback.
 - One WHEN per distinct user action. Never combine two actions into one WHEN.
 
-NEVER include in Mid: pixel values, color names, library names, CSS classes, API calls, SQL, file paths, or any implementation detail. These belong in code.
+STYLE RULES — always follow:
+- Write declaratively. Never use narrative phrases like "Now the user can...", "At this point...", "This means...", "With this in place...".
+- No summaries, no conclusions, no meta-commentary. Just specification.
+- Every sentence must describe a fact about the system, not a story about using it.
 
+NEVER include in Mid: pixel values, color names, library names, CSS classes, API calls, SQL, file paths, or any implementation detail.
+{verbosity_block}
 OUTPUT FORMAT — one section at a time, exactly like this:
 
 KEYWORD: section_name
@@ -271,7 +338,7 @@ Now compile this intent into Mid sections:
   Intent: {node.intent}
 {context_hint}{existing_hint}
 
-Write only sections directly introduced by this intent. Start with the first keyword line. No preamble.
+Write only sections directly introduced by this intent. Start with the first keyword line. No preamble. No summary at the end.
 """
 
 def mid_to_code_prompt(mid: str) -> str:
@@ -363,7 +430,6 @@ async def stream_anthropic(cfg: dict, prompt: str):
                         obj = json.loads(raw)
                     except Exception:
                         continue
-                    # content_block_delta carries text
                     if obj.get("type") == "content_block_delta":
                         token = obj.get("delta", {}).get("text", "")
                         if token:
@@ -387,7 +453,6 @@ def stream_model(role_cfg: dict, prompt: str):
 @app.get("/config")
 async def get_config():
     cfg = load_config()
-    # Mask key for frontend display
     for role in ["intent_compiler", "code_compiler"]:
         key = cfg[role].get("anthropic_key", "")
         if key:
@@ -402,18 +467,18 @@ async def post_config(update: ConfigUpdate):
     cfg = load_config()
     for role in ["intent_compiler", "code_compiler"]:
         incoming = dict(getattr(update, role))
-        # Don't overwrite key if frontend sent back the masked version
         if "…" in incoming.get("anthropic_key", ""):
             incoming.pop("anthropic_key", None)
         incoming.pop("anthropic_key_set", None)
         cfg[role].update(incoming)
+    if update.mid_verbosity in ("minimal", "moderate", "free"):
+        cfg["mid_verbosity"] = update.mid_verbosity
     save_config(cfg)
     return {"saved": True}
 
 @app.get("/config/ollama/models")
 async def list_ollama_models():
     cfg = load_config()
-    # Try both compiler URLs (they might differ)
     urls = set([
         cfg["intent_compiler"].get("ollama_url", "http://localhost:11434"),
         cfg["code_compiler"].get("ollama_url", "http://localhost:11434"),
@@ -450,15 +515,14 @@ async def check_overlaps(req: OverlapCheckRequest):
 async def compile_mid(req: CompileNodeRequest):
     cfg = load_config()
     role_cfg = cfg["intent_compiler"]
+    verbosity = cfg.get("mid_verbosity", "moderate")
 
-    # Names of already-defined sections (for dedup hint)
     existing_names = [
         f"{s.keyword}:{s.name}"
         for s in req.existing_sections
         if s.owner != req.node.id
     ]
 
-    # One-line summary of existing sections for context (not full body, just names+intents)
     existing_summary = ""
     if req.existing_sections:
         lines = []
@@ -468,7 +532,7 @@ async def compile_mid(req: CompileNodeRequest):
         if lines:
             existing_summary = "\n".join(lines)
 
-    prompt = node_to_mid_prompt(req.node, existing_names, existing_summary)
+    prompt = node_to_mid_prompt(req.node, existing_names, existing_summary, verbosity)
 
     async def generate():
         full_parts = []
@@ -483,7 +547,6 @@ async def compile_mid(req: CompileNodeRequest):
                     new_sections = text_to_sections(full_text, owner_id=req.node.id)
 
                     if not new_sections:
-                        # Self-repair: try a stripped-down prompt focused purely on getting valid output
                         repair_notice = json.dumps({"token": "\n\n[No valid sections found — attempting repair...]\n\n"})
                         yield f"data: {repair_notice}\n\n"
 
