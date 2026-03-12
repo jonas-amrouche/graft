@@ -1,0 +1,52 @@
+PART: Tasks
+NAME: Tasks
+STATUS: draft
+
+DATA: Task List
+MARKER: task_list
+INTENT: holds all tasks and their state
+TAGS: #date, #list, #task
+---
+The app holds a list of tasks. Each task has a title, a completion status, and a creation date.
+
+STRUCTURE: Task Screen
+MARKER: task_screen
+INTENT: the main screen showing all tasks
+TAGS: #list, #task
+---
+The screen has a top bar with the app name, a scrollable list of task cards, and a floating add button in the bottom right.
+
+WHEN: Add Task
+MARKER: add_task
+INTENT: user adds a new task
+TAGS: #form, #list, #task, #user
+---
+When the user taps the add button, a form appears. The user fills in the title and confirms. The new task appears at the top of the list.
+
+WHEN: Complete Task
+MARKER: complete_task
+INTENT: user marks a task as done
+TAGS: #card, #list, #task, #user
+---
+When the user taps the checkbox on a task card, the task status changes to complete. The card moves to the bottom of the list with a strikethrough style.
+
+ASSERT: Task Title
+MARKER: task_title
+INTENT: validation for task title
+TAGS: #task
+---
+A task title cannot be empty.
+
+SURFACE: Task Form
+MARKER: task_form
+INTENT: labels and button names for task form
+TAGS: #form, #task
+---
+The add button is labeled "New Task". The form has a label "Task Title" and a confirmation button labeled "Add Task".
+
+SURFACE: Task Card
+MARKER: task_card
+INTENT: labels and styles for task card
+TAGS: #card, #date, #task
+---
+Each task card has a title, a checkbox for completion, and a creation date. Completed tasks have a strikethrough style.

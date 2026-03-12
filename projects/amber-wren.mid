@@ -1,0 +1,51 @@
+PART: Budget Tracker
+NAME: Budget Tracker
+STATUS: draft
+
+DATA: Budget Categories
+MARKER: budget_categories
+INTENT: holds all budget categories and their balances
+TAGS: #list
+---
+The app holds a list of budget categories. Each category has a name, a current balance, and a monthly limit.
+
+STRUCTURE: Budget Screen
+MARKER: budget_screen
+INTENT: the main screen showing all budget categories and their balances
+---
+The screen has a header with the app name, a section for each budget category with its name, current balance, and monthly limit, and a floating add category button in the bottom right.
+
+WHEN: Add Category
+MARKER: add_category
+INTENT: user adds a new budget category
+TAGS: #form, #list, #user
+---
+When the user taps the add category button, a form appears. The user fills in the category name and monthly limit. The new category is added to the list and displayed on the budget screen.
+
+WHEN: Update Category
+MARKER: update_category
+INTENT: user updates an existing budget category
+TAGS: #form, #list, #user
+---
+When the user taps the edit icon on a category, a form appears. The user can modify the category name and monthly limit. After confirming, the changes are reflected in the list and on the budget screen.
+
+ASSERT: Category Balance
+MARKER: category_balance
+INTENT: ensure category balance does not exceed limit
+TAGS: #user
+---
+A category's current balance cannot exceed its monthly limit. If the balance would exceed the limit, the user is prompted to adjust the balance or the limit.
+
+SURFACE: Category Name
+MARKER: category_name
+INTENT: label for category name input
+TAGS: #form, #input
+---
+The add category form and edit category form have a label "Category Name" for the input field.
+
+SURFACE: Monthly Limit
+MARKER: monthly_limit
+INTENT: label for monthly limit input
+TAGS: #form, #input
+---
+The add category form and edit category form have a label "Monthly Limit" for the input field.

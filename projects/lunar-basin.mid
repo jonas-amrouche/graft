@@ -1,0 +1,54 @@
+PART: Recipes
+NAME: Recipes
+STATUS: draft
+
+DATA: Recipe Book
+MARKER: recipe_book
+INTENT: holds all recipes and their details
+TAGS: #time
+---
+The app holds a collection of recipes. Each recipe has a title, ingredients, instructions, cooking time, a rating, and a total time (preparation + baking).
+
+STRUCTURE: Recipe List Screen
+MARKER: recipe_list_screen
+INTENT: the main screen showing all recipes including trending ones
+TAGS: #list, #search
+---
+The screen has a header with the app name, a scrollable list of recipe cards, a search bar at the top, and a section for trending recipes below the main list.
+
+WHEN: Search Recipe
+MARKER: search_recipe
+INTENT: user searches for a recipe by title
+TAGS: #list, #search, #user, #when
+---
+When the user types in the search bar, the list of recipes filters to show only those with titles containing the search term. The user sees a list of matching recipes.
+
+ASSERT: Recipe Ratings
+MARKER: recipe_ratings
+INTENT: ensure ratings are valid
+LOCK: approved
+TAGS: #assert
+---
+A recipe's rating must be between 1 and 5 stars.
+
+SURFACE: Recipe Card
+MARKER: recipe_card
+INTENT: labels and text on recipe cards
+TAGS: #card, #state, #surface
+---
+The recipe card displays the recipe title, a star rating, and a "View" button. The empty state reads "No recipes found."
+
+DATA: Trending Recipes
+MARKER: trending_recipes
+INTENT: holds a list of trending recipes
+LOCK: approved
+TAGS: #date, #list
+---
+The app holds a list of trending recipes. Each recipe has a title, a short description, a rating, and a creation date.
+
+STRUCTURE: Recipe View Screen
+MARKER: recipe_view_screen
+INTENT: the screen to display a selected recipe in a news article format
+TAGS: #time
+---
+The screen displays the selected recipe in a detailed format, including ingredients, instructions, and a cooking time. The screen has a header with the recipe title, a body with the recipe content, and a footer with a back button.

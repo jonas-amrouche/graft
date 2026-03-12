@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recipe Book</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        header {
+            background-color: #333;
+            color: #fff;
+            padding: 1rem;
+            text-align: center;
+        }
+        .recipe-list {
+            display: flex;
+            flex-direction: column;
+            padding: 1rem;
+        }
+        .recipe-card {
+            border: 1px solid #ccc;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            flex-direction: column;
+        }
+        .recipe-card h2 {
+            margin: 0;
+        }
+        .recipe-card .rating {
+            margin-top: 0.5rem;
+        }
+        .recipe-card button {
+            margin-top: 1rem;
+        }
+        .search-bar {
+            margin-bottom: 1rem;
+        }
+        .trending-section {
+            margin-top: 2rem;
+        }
+        .trending-section h2 {
+            margin: 0;
+        }
+        .trending-section .recipe-card {
+            margin-bottom: 0.5rem;
+        }
+        .recipe-view {
+            padding: 1rem;
+        }
+        .recipe-view h1 {
+            margin-top: 0;
+        }
+        .recipe-view .content {
+            margin-top: 1rem;
+        }
+        .recipe-view .footer {
+            margin-top: 1rem;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Recipe Book</h1>
+    </header>
+    <div class="search-bar">
+        <input type="text" id="search-input" placeholder="Search recipes...">
+    </div>
+    <div class="recipe-list" id="recipe-list">
+        <!-- [graft:recipe_list_screen] -->
+        <!-- [graft:search_recipe] -->
+        <!-- [graft:recipe_ratings] -->
+        <!-- [/graft:recipe_list_screen] -->
+    </div>
+    <div class="trending-section">
+        <h2>Trending Recipes</h2>
+        <div id="trending-recipes">
+            <!-- [graft:trending_recipes] -->
+            <!-- [/graft:trending_recipes] -->
+        </div>
+    </div>
+    <div class="recipe-view" id="recipe-view">
+        <!-- [graft:recipe_view_screen] -->
+        <!-- [/graft:recipe_view_screen] -->
+    </div>
+    <script>
+        // [graft:marker] recipe_book
+        const recipes = [
+            { title: "Spaghetti Carbonara", ingredients: ["spaghetti", "eggs", "bacon", "parmesan"], instructions: "Boil water, cook pasta, fry bacon, mix eggs and cheese, toss with pasta.", cookingTime: "20 minutes", rating: 4 },
+            { title: "Chicken Alfredo", ingredients: ["chicken", "alfredo sauce", "noodles"], instructions: "Cook chicken, boil noodles, mix sauce with noodles, serve with chicken.", cookingTime: "30 minutes", rating: 5 },
+            // Add more recipes here
+        ];
+
+        const trendingRecipes = [
+            { title: "Spaghetti Carbonara", description: "Classic Italian dish with creamy Alfredo sauce.", rating: 4, creationDate: "2023-04-01" },
+            { title: "Chicken Alfredo", description: "Simple and delicious Alfredo sauce with chicken.", rating: 5, creationDate: "2023-04-02" },
+            // Add more trending recipes here
+        ];
+
+        function renderRecipes(recipes) {
+            const recipeList = document.getElementById('recipe-list');
+            recipeList.innerHTML = recipes.map(recipe => `
+                <div class="recipe-card">
+                    <h2>${recipe.title}</h2>
+                    <div class="rating">Rating: ${recipe.rating}</div>
+                    <button onclick="showRecipe('${recipe.title}')">View</button>
+                </div>
+            `).join('');
+        }
+
+        function renderTrendingRecipes(recipes) {
+            const trendingSection = document.getElementById('trending-recipes');
+            trendingSection.innerHTML = recipes.map(recipe => `
+                <div class="recipe-card">
+                    <h2>${recipe.title}</h2>
+                    <div class="description">${recipe.description}</div>
+                    <div class="rating">Rating: ${recipe.rating}</div>
+                </div>
+            `).join('');
+        }
+
+        function showRecipe(title) {
+            const recipe = recipes.find(r => r.title === title);
+            if (recipe) {
+                const recipeView = document.getElementById('recipe-view');
+                recipeView.innerHTML = `
+                    <h1>${recipe.title}</h1>
+                    <div class="content">
+                        <h2>Ingredients</h2>
+                        <ul>${recipe.ingredients.map(ingredient => `<li>${ingredient}</li>`).join('')}</ul>
+                        <h2>Instructions</h2>
+                        <p>${recipe.instructions}</p>
+                        <h2>Cooking Time</h2>
+                        <p>${recipe.cookingTime}</p>
+                    </div>
+                    <div class="footer">
+                        <button onclick="hideRecipe()">Back</button>
+                    </div>
+                `;
+            }
+        }
+
+        function hideRecipe() {
+            const recipeView = document.getElementById('recipe-view');
+            recipeView.innerHTML = '';
+        }
+
+        document.getElementById('search-input').addEventListener('input', function(event) {
+            const searchTerm = event.target.value.toLowerCase();
+            const filteredRecipes = recipes.filter(recipe => recipe.title.toLowerCase().includes(searchTerm));
+            renderRecipes(filteredRecipes);
+        });
+
+        renderRecipes(recipes);
+        renderTrendingRecipes(trendingRecipes);
+        // [/graft:marker]
+    </script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+PART: Budget Tracker
+NAME: Budget Tracker
+STATUS: draft
+
+WHEN: Add Category
+MARKER: add_category
+INTENT: user adds a new budget category
+TAGS: #form, #list, #user, #when
+---
+When the user taps the add category button, a form appears. The user fills in the category name and monthly limit. The new category is added to the list and its balance is set to zero.
+
+WHEN: Update Category Balance
+MARKER: update_category_balance
+INTENT: user updates a category's balance
+TAGS: #card, #form, #user, #when
+---
+When the user taps the edit icon on a category card, a form appears. The user can adjust the balance. The changes are saved and the category's balance is updated.
+
+ASSERT: Category Limits
+MARKER: category_limits
+INTENT: ensure categories do not exceed their monthly limits
+TAGS: #assert
+---
+A category's balance cannot exceed its monthly limit. If a category's balance reaches its limit, no further expenses can be added to that category until the next month.
+
+SURFACE: Category Card
+MARKER: category_card
+INTENT: labels and styles for category cards
+TAGS: #card, #surface
+---
+The category card displays the category name, current balance, and monthly limit. The card background color changes to red if the balance exceeds the limit.

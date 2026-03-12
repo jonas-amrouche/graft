@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task List</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .top-bar {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px;
+            text-align: center;
+        }
+        .task-list {
+            margin: 20px;
+        }
+        .task-card {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+            position: relative;
+        }
+        .task-card.completed {
+            text-decoration: line-through;
+        }
+        .task-card.completed .checkbox {
+            pointer-events: none;
+        }
+        .checkbox {
+            margin-right: 10px;
+        }
+        .add-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="top-bar">Task List</div>
+    <div class="task-list" id="task-list">
+        <!-- Task cards will be dynamically added here -->
+    </div>
+    <button class="add-button" onclick="showForm()">New Task</button>
+
+    <div id="task-form" style="display: none;">
+        <label for="task-title">Task Title:</label>
+        <input type="text" id="task-title" required>
+        <button onclick="addTask()">Add Task</button>
+    </div>
+
+    <script>
+        const taskList = document.getElementById('task-list');
+        const taskForm = document.getElementById('task-form');
+
+        function showForm() {
+            taskForm.style.display = 'block';
+        }
+
+        function addTask() {
+            const title = document.getElementById('task-title').value;
+            if (title.trim() === '') {
+                alert('Task title cannot be empty');
+                return;
+            }
+            const taskCard = document.createElement('div');
+            taskCard.className = 'task-card';
+            taskCard.innerHTML = `
+                <input type="checkbox" class="checkbox" onclick="completeTask(this)">
+                <span>${title}</span>
+                <span class="creation-date">${new Date().toLocaleString()}</span>
+            `;
+            taskList.insertBefore(taskCard, taskList.firstChild);
+            taskForm.style.display = 'none';
+            document.getElementById('task-title').value = '';
+        }
+
+        function completeTask(checkbox) {
+            const taskCard = checkbox.parentElement;
+            if (checkbox.checked) {
+                taskCard.classList.add('completed');
+            } else {
+                taskCard.classList.remove('completed');
+            }
+            taskList.appendChild(taskCard);
+        }
+    </script>
+</body>
+</html>

@@ -184,6 +184,7 @@ body { background:var(--bg); color:var(--text); font-family:var(--font-ui); font
   font-family:var(--font-mono); font-size:9px; letter-spacing:.22em;
   text-transform:uppercase; color:var(--c-anchor); opacity:.7;
   margin-bottom:12px;
+  display:flex; align-items:center; justify-content:space-between;
 }
 .doc-anchor-item {
   display:flex; align-items:flex-start; gap:10px;
@@ -192,6 +193,16 @@ body { background:var(--bg); color:var(--text); font-family:var(--font-ui); font
 }
 .doc-anchor-item:first-of-type { border-top:none; }
 .doc-anchor-item:hover .doc-anchor-name { color:#fff; }
+.doc-anchor-item.is-targeted { background:rgba(120,80,200,.12); border-radius:3px; }
+.doc-anchor-item.is-targeted .doc-anchor-name { color:rgba(200,170,255,.98); }
+.doc-anchor-actions { display:flex; gap:4px; align-items:flex-start; flex-shrink:0; opacity:0; transition:opacity .12s; }
+.doc-anchor-item:hover .doc-anchor-actions { opacity:1; }
+.doc-anchor-action-btn { width:22px; height:22px; border-radius:3px; background:transparent; border:1px solid transparent; color:var(--text-4); cursor:pointer; font-size:11px; display:flex; align-items:center; justify-content:center; transition:all .1s; }
+.doc-anchor-action-btn:hover { color:var(--c-anchor); border-color:rgba(160,200,240,.3); background:rgba(160,200,240,.06); }
+.doc-anchor-del-btn:hover { color:var(--c-when) !important; border-color:rgba(224,112,128,.3) !important; background:rgba(224,112,128,.07) !important; }
+.btn-warn { background:rgba(224,112,128,.12); color:var(--c-when); border:1px solid rgba(224,112,128,.3); padding:5px 14px; border-radius:3px; cursor:pointer; font-size:12px; transition:all .1s; }
+.btn-warn:hover:not(:disabled) { background:rgba(224,112,128,.22); }
+.btn-warn:disabled { opacity:.35; cursor:default; }
 .doc-anchor-chain { color:var(--c-anchor); opacity:.5; font-size:11px; padding-top:1px; flex-shrink:0; }
 .doc-anchor-name {
   font-size:12px; font-weight:600; color:rgba(160,200,240,.8);
@@ -207,17 +218,18 @@ body { background:var(--bg); color:var(--text); font-family:var(--font-ui); font
   scroll-margin-top:32px;
 }
 .doc-part-header {
-  display:flex; align-items:baseline; gap:12px;
+  display:flex; align-items:center; gap:12px;
   margin-bottom:20px;
-  padding-bottom:12px;
+  padding-bottom:14px;
   border-bottom:1px solid rgba(255,255,255,.07);
+  cursor:pointer;
 }
 .doc-part-name {
-  font-size:22px; font-weight:700;
-  color:rgba(245,245,245,.92); letter-spacing:-.02em;
-  cursor:pointer; transition:color .12s;
+  font-size:20px; font-weight:700;
+  color:rgba(245,245,245,.88); letter-spacing:-.02em;
+  flex:1; transition:color .12s;
 }
-.doc-part-name:hover { color:#fff; }
+.doc-part-header:hover .doc-part-name { color:#fff; }
 .doc-part-name.is-targeted { color:rgba(200,170,255,.98); }
 .doc-part-status {
   font-family:var(--font-mono); font-size:9px; letter-spacing:.18em;
@@ -238,33 +250,35 @@ body { background:var(--bg); color:var(--text); font-family:var(--font-ui); font
 /* ── Section grid inside part ── */
 .doc-sections {
   display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(240px,1fr));
+  grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
   gap:1px;
-  background:rgba(255,255,255,.05);
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.05);
   border-radius:5px;
   overflow:hidden;
 }
 .doc-section {
-  background:#111;
-  padding:16px 18px 18px;
+  background:var(--surface);
+  padding:14px 14px 18px;
   cursor:pointer;
-  transition:background .12s;
+  transition:background .1s;
   position:relative;
 }
-.doc-section:hover { background:#161618; }
+
+.doc-section:hover { background:var(--surface2); }
 .doc-section.is-targeted {
-  background:rgba(100,65,180,.12);
-  outline:none;
+  background:rgba(100,65,180,.13);
 }
 .doc-section.is-targeted::before {
   content:''; position:absolute; left:0; top:0; bottom:0; width:2px;
-  background:rgba(176,144,220,.85);
+  background:rgba(176,144,220,.9);
 }
 /* keyword eyebrow */
 .doc-kw {
   font-family:var(--font-mono); font-size:8px; font-weight:700;
   letter-spacing:.22em; text-transform:uppercase;
   margin-bottom:6px;
+  display:flex; align-items:center; justify-content:space-between;
 }
 .doc-kw-label {
   padding:1px 5px; border-radius:2px;
@@ -292,6 +306,66 @@ body { background:var(--bg); color:var(--text); font-family:var(--font-ui); font
 .doc-body {
   font-size:12px; line-height:1.8; color:rgba(210,210,210,.58);
 }
+
+/* Inline section prompt */
+.doc-inline-prompt {
+  display:flex; align-items:flex-start; gap:6px;
+  margin-top:12px; padding-top:10px;
+  border-top:1px solid rgba(255,255,255,.07);
+}
+.doc-inline-ta {
+  flex:1; background:rgba(255,255,255,.04); border:1px solid rgba(176,144,220,.3);
+  border-radius:4px; color:var(--text); font-family:var(--font-ui); font-size:12px;
+  line-height:1.55; padding:5px 8px; outline:none; resize:none;
+  min-height:28px; max-height:100px; overflow-y:auto; transition:border-color .12s;
+}
+.doc-inline-ta:focus { border-color:rgba(176,144,220,.7); background:rgba(176,144,220,.06); }
+.doc-inline-ta::placeholder { color:var(--text-4); }
+.doc-section-delete {
+  flex-shrink:0; width:24px; height:24px; border-radius:3px; margin-top:2px;
+  background:transparent; border:1px solid transparent;
+  color:var(--text-4); cursor:pointer; font-size:10px;
+  display:flex; align-items:center; justify-content:center; transition:all .1s;
+}
+.doc-section-delete:hover { color:var(--c-when); border-color:rgba(224,112,128,.3); background:rgba(224,112,128,.07); }
+
+/* Lock badge — always on card, hover reveals it's interactive */
+.doc-lock-badge {
+  display:inline-flex; align-items:center;
+  font-family:var(--font-mono); font-size:8px; letter-spacing:.12em;
+  text-transform:uppercase; padding:3px 8px; border-radius:2px;
+  background:transparent; border:1px solid transparent;
+  cursor:pointer; transition:all .14s; line-height:1;
+}
+/* none state: invisible until hover */
+.doc-lock-badge-none { color:var(--text-4); border-color:transparent; letter-spacing:.06em; }
+.doc-lock-badge-none:hover { color:var(--text-2); border-color:var(--border2); background:rgba(255,255,255,.04); }
+/* approved state: visible dim green */
+.doc-lock-badge-approved { color:var(--c-data); border-color:rgba(94,203,126,.25); background:rgba(94,203,126,.05); }
+.doc-lock-badge-approved:hover { background:rgba(94,203,126,.12); border-color:rgba(94,203,126,.5); }
+/* locked state: visible dim blue */
+.doc-lock-badge-locked { color:var(--c-anchor); border-color:rgba(160,200,240,.25); background:rgba(160,200,240,.05); }
+.doc-lock-badge-locked:hover { background:rgba(160,200,240,.12); border-color:rgba(160,200,240,.5); }
+.doc-lock-badge:disabled { cursor:default; opacity:.5; }
+/* Draft ghost */
+.doc-draft-ghost {
+  margin-top:10px; padding-top:8px; border-top:1px solid rgba(255,255,255,.05);
+  font-size:11px; font-style:italic; color:var(--text-4);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.doc-draft-ghost::before { content:'✎ '; opacity:.5; }
+
+/* Tags */
+.doc-sec-tags {
+  display:flex; flex-wrap:wrap; gap:4px; margin-top:8px;
+}
+.doc-tag {
+  font-family:var(--font-mono); font-size:8px; letter-spacing:.06em;
+  color:var(--text-3); background:rgba(255,255,255,.04);
+  border:1px solid var(--border2); border-radius:2px;
+  padding:1px 5px; cursor:default;
+}
+.doc-tag:hover { color:var(--text-2); border-color:var(--border2); }
 
 /* hint bar */
 .doc-hint {
@@ -329,8 +403,8 @@ body { background:var(--bg); color:var(--text); font-family:var(--font-ui); font
 
 /* ── Command bar ── */
 .cmd-bar {
-  position:absolute;
-  bottom:60px; left:50%; transform:translateX(-50%);
+  position:fixed;
+  bottom:28px; left:50%; transform:translateX(-50%);
   width:min(600px, calc(100% - 80px));
   background:var(--surface2);
   border:1px solid var(--border2);
@@ -390,16 +464,36 @@ body { background:var(--bg); color:var(--text); font-family:var(--font-ui); font
 }
 .cmd-chip:hover { border-color:var(--c-accent); color:var(--text); }
 
-/* history float */
-.cmd-history {
-  position:absolute; bottom:60px; left:50%; transform:translateX(-50%);
-  width:min(600px, calc(100% - 80px));
-  max-height:340px;
-  background:var(--surface2); border:1px solid var(--border2);
-  border-radius:8px; box-shadow:0 8px 40px rgba(0,0,0,.6);
-  z-index:99; display:flex; flex-direction:column;
-  overflow:hidden;
+/* Meta row inside cmd-bar */
+.cmd-meta-row {
+  display:flex; align-items:center; gap:8px;
+  padding:8px 8px 10px 14px; border-top:1px solid var(--border);
 }
+.cmd-meta-tags {
+  flex:1; background:transparent; border:1px solid var(--border2); border-radius:3px;
+  color:var(--text-2); font-family:var(--font-mono); font-size:11px;
+  padding:4px 8px; outline:none;
+}
+.cmd-meta-tags:focus { border-color:var(--c-accent); }
+.cmd-meta-tags::placeholder { color:var(--text-4); }
+.cmd-meta-delete {
+  font-family:var(--font-mono); font-size:10px; padding:4px 10px; border-radius:3px;
+  border:1px solid rgba(224,112,128,.25); background:transparent;
+  color:rgba(224,112,128,.6); cursor:pointer; white-space:nowrap; transition:all .1s;
+}
+.cmd-meta-delete:hover { color:var(--c-when); border-color:var(--c-when); background:rgba(224,112,128,.08); }
+.cmd-meta-delete:disabled { opacity:.35; cursor:default; }
+
+/* Add anchor button (in anchor chain header) */
+.doc-add-anchor-btn {
+  font-family:var(--font-mono); font-size:9px; letter-spacing:.1em;
+  padding:2px 8px; border-radius:2px;
+  border:1px solid rgba(160,200,240,.25); background:transparent;
+  color:rgba(160,200,240,.5); cursor:pointer; margin-left:10px;
+  transition:all .12s;
+}
+.doc-add-anchor-btn:hover { color:var(--c-anchor); border-color:rgba(160,200,240,.6); }
+.doc-add-anchor-standalone { display:block; margin:0 0 28px; }
 .cmd-history-head {
   padding:9px 14px; border-bottom:1px solid var(--border);
   display:flex; align-items:center; justify-content:space-between;
@@ -424,18 +518,7 @@ body { background:var(--bg); color:var(--text); font-family:var(--font-ui); font
 .scope-btn:hover { color:var(--text-2); }
 .scope-btn-active { background:var(--surface2); color:var(--c-intent) !important; }
 /* ── Scope halo ── */
-.b-halo {
-  position:absolute; border-radius:8px; pointer-events:none;
-  border:1px solid rgba(176,144,220,.18);
-  background:rgba(176,144,220,.04);
-  transition:opacity .3s;
-}
-.b-halo.scope-precise { border-color:rgba(176,144,220,.35); background:rgba(176,144,220,.07); }
-.b-halo.scope-broad   { border-color:rgba(176,144,220,.1);  background:rgba(176,144,220,.025); }
-@keyframes blink-warn { 0%,100%{opacity:1} 50%{opacity:.4} }
-.mid-content { max-width:660px; margin:0 auto; }
-.mid-empty { height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; color:var(--text-3); font-size:13px; text-align:center; line-height:1.9; }
-.mid-empty-icon { font-size:28px; opacity:.25; }
+
 
 /* Doc header */
 .mid-doc-eyebrow { font-family:var(--font-mono); font-size:9px; letter-spacing:.26em; text-transform:uppercase; color:var(--text-3); margin-bottom:14px; }
@@ -610,7 +693,8 @@ code[class*="language-"], pre[class*="language-"] { background:transparent !impo
 .example-chip:hover { border-color:var(--c-accent); color:var(--text); }
 .stat { font-family:var(--font-mono); font-size:10px; color:var(--text-3); letter-spacing:.05em; display:flex; align-items:center; gap:5px; }
 .stat-dot { width:6px; height:6px; border-radius:50%; background:var(--text-4); }
-.stat-dot.ok    { background:var(--c-state); }
+.stat-dot.ok    { background:var(--c-data); }
+.stat-dot.warn  { background:var(--c-assert); }
 .stat-dot.busy  { background:var(--c-type); animation:pulse 1s infinite; }
 .stat-dot.error { background:var(--c-when); }
 .stat-right { margin-left:auto; }
@@ -707,6 +791,36 @@ code[class*="language-"], pre[class*="language-"] { background:transparent !impo
 <body>
 
 <div id="struct-tip"></div>
+
+<!-- Add/Edit anchor modal -->
+<div class="modal-bg" id="modal-anchor">
+  <div class="modal">
+    <div class="modal-title" id="modal-anchor-title">Add Anchor</div>
+    <div style="font-size:12px;color:var(--text-3);margin-bottom:14px;line-height:1.7" id="modal-anchor-sub">Anchors are foundational invariants you write.<br>The AI never generates or modifies them.</div>
+    <input class="modal-input" id="anchor-name" placeholder="Name (snake_case)" />
+    <textarea class="modal-input" id="anchor-body" placeholder="Invariant in plain prose…" rows="3" style="resize:vertical;height:72px"></textarea>
+    <input class="modal-input" id="anchor-tags" placeholder="#tags, #optional" />
+    <div class="modal-acts">
+      <button class="btn" onclick="closeModal('modal-anchor')">Cancel</button>
+      <button class="btn btn-primary" id="modal-anchor-confirm" onclick="confirmAddAnchor()">Add Anchor</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete anchor confirm modal -->
+<div class="modal-bg" id="modal-delete-anchor">
+  <div class="modal">
+    <div class="modal-title" style="color:var(--c-when)">⚠ Delete Anchor</div>
+    <div style="font-size:12px;color:var(--text-2);line-height:1.7;margin-bottom:6px">This is a <strong>foundational invariant</strong>. Deleting it may break code regions marked with this anchor. This action can be undone with ctrl+z.</div>
+    <div style="font-size:11px;color:var(--text-3);margin-bottom:12px">Type the anchor name to confirm:</div>
+    <input class="modal-input" id="delete-anchor-confirm-input" placeholder="" oninput="onDeleteAnchorInput()" />
+    <div id="delete-anchor-name-hint" style="font-family:var(--font-mono);font-size:10px;color:var(--text-4);margin-top:-6px"></div>
+    <div class="modal-acts">
+      <button class="btn" onclick="closeModal('modal-delete-anchor')">Cancel</button>
+      <button class="btn btn-warn" id="btn-delete-anchor-confirm" onclick="confirmDeleteAnchor()" disabled>Delete</button>
+    </div>
+  </div>
+</div>
 
 <!-- New project modal -->
 <div class="modal-bg" id="modal-new">
@@ -805,6 +919,15 @@ code[class*="language-"], pre[class*="language-"] { background:transparent !impo
             <button class="cmd-chip" onclick="useExample(this)">habit tracker</button>
             <button class="cmd-chip" onclick="useExample(this)">kanban board</button>
           </div>
+          <!-- Meta row: shown when 1 section is selected -->
+          <div class="cmd-meta-row" id="cmd-meta-row" style="display:none">
+            <input class="cmd-meta-tags" id="cmd-meta-tags" type="text"
+              placeholder="#tag1, #tag2…"
+              onblur="commitSectionMeta()"
+              onkeydown="if(event.key==='Enter'){commitSectionMeta();event.preventDefault();}" />
+            <button class="cmd-meta-delete" id="cmd-meta-delete" onclick="requestDeleteSection(targetSectionIds[0])" title="Delete section">✕ Delete</button>
+          </div>
+
         </div>
 
         <!-- History panel -->
@@ -865,6 +988,10 @@ let configCache    = null;
 let generating     = false;
 let activeCodeFile = null;
 let historyOpen    = false; // nb: history renamed promptHistory
+let _undoStack     = [];    // [{sections, parts, label}]
+let _undoIdx       = -1;    // current position in stack
+let _anchorEditId  = null;
+let _deleteAnchorId = null;
 
 // Prompt panel state
 let targetPartId      = null;   // soft target: part id or null (global)
@@ -887,6 +1014,10 @@ const partOf = sectionId => { const s = sections.find(x=>x.id===sectionId); retu
 function setStatus(txt, state='ok') {
   document.getElementById('stat-text').textContent = txt;
   document.getElementById('stat-dot').className = 'stat-dot ' + state;
+  if (state === 'warn' || state === 'error') {
+    clearTimeout(window._statusTimer);
+    window._statusTimer = setTimeout(() => setStatus('Ready'), 6000);
+  }
 }
 
 function setGenerating(active, label='', genTab=null) {
@@ -1060,6 +1191,7 @@ async function loadProject(name) {
     sections = md.sections || [];
     parts    = md.parts    || [];
     promptHistory = (await hr.json()).history || [];
+    _undoStack = []; _undoIdx = -1; // fresh stack per project load
 
     codeFiles = {};
     const cd = await cr.json();
@@ -1146,33 +1278,54 @@ function setTarget(partId, sectionIds = [], labelText = '') {
   } else {
     targetEl.style.display = 'none';
   }
+  updateMetaBar();
 }
 
 function clearTarget(skipRender) {
+  targetPartId = null; targetSectionIds = [];
   setTarget(null);
-  if (!skipRender) renderMid();
-  // Keep bar open, just clear the target pill
+  if (!skipRender) { renderMid(); renderStruct(); }
 }
 
 function openCmdBar() {
   const bar = document.getElementById('cmd-bar');
   if (!bar) return;
   bar.style.display = '';
-  // auto-resize textarea on open
+  const sectionMode = targetSectionIds.length === 1;
+  // Show/hide prompt row + chips based on mode
+  const cmdRow = bar.querySelector('.cmd-row');
+  const chips  = document.getElementById('cmd-chips');
+  if (cmdRow) cmdRow.style.display = sectionMode ? 'none' : '';
+  if (chips)  chips.style.display  = sectionMode ? 'none' : '';
   const ta = document.getElementById('prompt-ta');
-  if (ta) { ta.style.height = 'auto'; setTimeout(() => ta.focus(), 20); }
-  document.getElementById('doc-hint').style.display = 'none';
+  if (ta && !sectionMode) {
+    const draft = (targetPartId && !targetSectionIds.length) ? getDraftPrompt('part:' + targetPartId) : '';
+    ta.value = draft;
+    ta.style.height = 'auto';
+    if (draft) ta.style.height = ta.scrollHeight + 'px';
+    setTimeout(() => ta.focus(), 20);
+  }
+  const hint = document.getElementById('doc-hint');
+  if (hint) hint.style.display = 'none';
+  updateMetaBar();
 }
 
 function closeCmdBar() {
   const bar = document.getElementById('cmd-bar');
-  if (!bar || bar.style.display === 'none') return; // already closed
+  if (!bar) return;
+  // Always restore prompt row visibility for next open
+  const cmdRow = bar.querySelector('.cmd-row');
+  const chips  = document.getElementById('cmd-chips');
+  if (cmdRow) cmdRow.style.display = '';
+  if (chips)  chips.style.display  = '';
   bar.style.display = 'none';
+  const metaRow = document.getElementById('cmd-meta-row');
+  if (metaRow) metaRow.style.display = 'none';
   const hist = document.getElementById('history-drawer');
   if (hist) hist.style.display = 'none';
-  document.getElementById('doc-hint').style.display = '';
+  const hint = document.getElementById('doc-hint');
+  if (hint) hint.style.display = '';
   historyOpen = false;
-  // Clear target state so board stops showing highlights
   targetPartId = null; targetSectionIds = [];
   setTarget(null);
   renderMid();
@@ -1189,33 +1342,37 @@ function toggleHistory() {
 
 function renderHistory() {
   const el = document.getElementById('history-list');
-  if (!promptHistory.length) {
-    el.innerHTML = '<div style="padding:12px 14px;font-family:var(--font-mono);font-size:10px;color:var(--text-4)">No prompts yet.</div>';
+  if (!el) return;
+  if (typeof _undoStack === 'undefined' || !_undoStack.length) {
+    el.innerHTML = '<div style="padding:12px 14px;font-family:var(--font-mono);font-size:10px;color:var(--text-4)">No history yet.</div>';
     return;
   }
-  // Most recent first
-  const entries = [...promptHistory].reverse();
-  el.innerHTML = entries.map(e => {
-    const ts = new Date(e.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-    const target = e.target_part_id
-      ? '<span style="color:var(--c-intent);opacity:.7">→ '+ esc(e.target_part_id) +'</span>'
-      : '<span style="color:var(--text-4)">global</span>';
-    const changes = [
-      ...e.sections_added.map(n=>'<span style="color:var(--c-state)">+'+esc(n)+'</span>'),
-      ...e.sections_modified.map(n=>'<span style="color:var(--c-warn)">~'+esc(n)+'</span>'),
-      ...e.sections_removed.map(n=>'<span style="color:var(--c-when)">−'+esc(n)+'</span>'),
-    ].join(' ');
-    return `<div style="padding:8px 14px;border-bottom:1px solid var(--border);cursor:default"
-      onmouseenter="this.style.background='rgba(255,255,255,.02)'"
-      onmouseleave="this.style.background=''">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-        <span style="font-family:var(--font-mono);font-size:9px;color:var(--text-4)">${ts}</span>
-        ${target}
-      </div>
-      <div style="font-size:11px;color:var(--text-2);line-height:1.4;margin-bottom:${changes?'5px':'0'}">${esc(e.prompt)}</div>
-      ${changes ? '<div style="font-family:var(--font-mono);font-size:9px;line-height:1.8">'+changes+'</div>' : ''}
-    </div>`;
-  }).join('');
+  el.innerHTML = '';
+  for (let i = _undoStack.length - 1; i >= 0; i--) {
+    const snap = _undoStack[i];
+    const isCurrent = i === _undoIdx;
+    const isFuture  = i > _undoIdx;
+    const div = document.createElement('div');
+    div.style.cssText = 'padding:7px 14px;border-bottom:1px solid var(--border);cursor:pointer;display:flex;align-items:center;gap:8px' + (isFuture?';opacity:.45':'') + (isCurrent?';background:rgba(176,144,220,.08)':'');
+    div.onclick = () => applyUndoState(i);
+    const dot = document.createElement('div');
+    dot.style.cssText = 'width:5px;height:5px;border-radius:50%;flex-shrink:0;transition:background .1s;background:' + (isCurrent?'var(--c-surface)':isFuture?'var(--border2)':'var(--text-4)');
+    const line = document.createElement('div');
+    line.style.cssText = 'flex:1;min-width:0';
+    line.innerHTML = '<div style="font-size:11px;color:' + (isCurrent?'var(--text)':'var(--text-3)') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(snap.label) + '</div><div style="font-family:var(--font-mono);font-size:9px;color:var(--text-4)">' + snap.sections.length + ' sections</div>';
+    const restoreBtn = document.createElement('button');
+    restoreBtn.style.cssText = 'font-family:var(--font-mono);font-size:9px;padding:2px 7px;border-radius:2px;border:1px solid var(--border2);background:transparent;color:var(--text-3);cursor:pointer;flex-shrink:0;white-space:nowrap';
+    restoreBtn.textContent = isCurrent ? '● current' : (i < _undoIdx ? '↩ restore' : '↷ redo');
+    restoreBtn.disabled = isCurrent;
+    div.onmouseenter = function() { if (!isCurrent) this.style.background='rgba(255,255,255,.03)'; };
+    div.onmouseleave = function() { this.style.background = isCurrent?'rgba(176,144,220,.08)':''; };
+    div.append(dot, line, restoreBtn);
+    el.appendChild(div);
+  }
+  const hint = document.createElement('div');
+  hint.style.cssText = 'padding:8px 14px;font-family:var(--font-mono);font-size:9px;color:var(--text-4);border-top:1px solid var(--border)';
+  hint.textContent = 'ctrl+z undo  ·  ctrl+shift+z redo';
+  el.appendChild(hint);
 }
 
 // ── Compile (new architecture) ────────────────────────────────────────────────
@@ -1223,6 +1380,29 @@ function renderHistory() {
 async function compileMidFromPrompt() {
   const prompt = document.getElementById('prompt-ta').value.trim();
   if (!prompt || !project) return;
+
+  // ── Warn before touching approved sections ───────────────────────────────
+  // Find approved sections that are in the compile scope
+  const approvedInScope = sections.filter(s => {
+    if (s.lock_status !== 'approved') return false;
+    if (s.keyword === 'ANCHOR') return false;
+    // Sole section targeted: only that one section is in scope
+    if (targetSectionIds.length === 1) return targetSectionIds.includes(s.id);
+    // Part targeted: all sections in that part
+    if (targetPartId && !targetSectionIds.length) return s.part_id === targetPartId;
+    // Global: everything is in scope
+    if (!targetPartId && !targetSectionIds.length) return true;
+    // Multi-section select: just those sections
+    return targetSectionIds.includes(s.id);
+  });
+
+  if (approvedInScope.length) {
+    const names = approvedInScope.map(s => s.keyword + ': ' + s.name).join('\n  · ');
+    const msg = approvedInScope.length === 1
+      ? `This will rewrite an approved section:\n\n  · ${names}\n\nApproved sections were marked as reviewed. Proceed anyway?`
+      : `${approvedInScope.length} approved sections are in scope and may be rewritten:\n\n  · ${names}\n\nProceed anyway?`;
+    if (!confirm(msg)) return;
+  }
 
   setGenerating(true, 'Compiling Mid…', 'mid');
   switchTab('mid');
@@ -1282,7 +1462,9 @@ async function compileMidFromPrompt() {
             sections = obj.sections;
             parts    = obj.parts || parts;
 
-            // Append history entry
+            // Push undo snapshot + append history entry
+            const histLabel = obj.history_entry ? obj.history_entry.prompt.slice(0,50) : 'compile';
+            pushUndo(histLabel);
             if (obj.history_entry) {
               promptHistory.push(obj.history_entry);
               if (historyOpen) renderHistory();
@@ -1294,7 +1476,8 @@ async function compileMidFromPrompt() {
             setGenerating(false); updateButtons();
             setStatus('Mid updated');
 
-            // Clear prompt after successful compile
+            // Clear prompt + draft after successful compile
+            clearDraftPrompt(targetSectionIds.length === 1 ? targetSectionIds[0] : ('part:' + targetPartId));
             document.getElementById('prompt-ta').value = '';
             const _sb2 = document.getElementById('btn-compile-prompt');
             if (_sb2) _sb2.disabled = true;
@@ -1477,9 +1660,10 @@ function liveParsePartial(text, existingSections, existingParts) {
     });
     const body = bodyLines.join('\n').trim();
     if (kw && (body.length > 5 || name)) {
+      const livePid = kw === 'ANCHOR' ? '__anchors' : (partId || 'global');
       newSecs.push({
         id: `live_${i}`, keyword: kw, name: name || `section_${i}`,
-        intent_tag: intent, part_id: partId || 'global',
+        intent_tag: intent, part_id: livePid,
         code_marker: marker || `graft_${i}`, body
       });
     }
@@ -1550,21 +1734,51 @@ function renderMid() {
     chain.className = 'doc-anchors';
     const lbl = document.createElement('div');
     lbl.className = 'doc-anchors-label';
-    lbl.textContent = 'Anchors';
+    const lblText = document.createElement('span');
+    lblText.textContent = 'Anchors';
+    lbl.appendChild(lblText);
+    const addAnchorBtn = document.createElement('button');
+    addAnchorBtn.className = 'doc-add-anchor-btn';
+    addAnchorBtn.textContent = '+ anchor';
+    addAnchorBtn.title = 'Add another anchor invariant';
+    addAnchorBtn.onclick = e => { e.stopPropagation(); openAddAnchorModal(); };
+    lbl.appendChild(addAnchorBtn);
     chain.appendChild(lbl);
     anchors.forEach(s => {
       const item = document.createElement('div');
-      item.className = 'doc-anchor-item';
+      const isAnchorTargeted = targetSectionIds.includes(s.id);
+      item.className = 'doc-anchor-item' + (isAnchorTargeted ? ' is-targeted' : '');
       item.id = `sec-${s.id}`;
-      item.onclick = () => clickSection(s.id, s.part_id, false);
-      item.innerHTML = `<span class="doc-anchor-chain">○</span>
-        <div>
-          <div class="doc-anchor-name">${esc(s.name)}</div>
+      item.onclick = e => { e.stopPropagation(); clickSection(s.id, s.part_id, e.shiftKey); };
+      item.innerHTML = `<span class="doc-anchor-chain">⊘</span>
+        <div style="flex:1;min-width:0">
+          <div class="doc-anchor-name">${esc(s.name)}
+            <span style="font-family:var(--font-mono);font-size:8px;letter-spacing:.12em;color:rgba(160,200,240,.4);margin-left:8px;text-transform:uppercase">locked</span>
+          </div>
           <div class="doc-anchor-body">${esc(s.body)}</div>
-        </div>`;
+          ${s.tags&&s.tags.length ? '<div class="doc-sec-tags" style="margin-top:4px">'+s.tags.map(t=>`<span class="doc-tag">#${esc(t)}</span>`).join('')+'</div>' : ''}
+        </div>
+        <div class="doc-anchor-actions"></div>`;
+      const _editBtn = document.createElement('button');
+      _editBtn.className = 'doc-anchor-action-btn'; _editBtn.title = 'Edit anchor'; _editBtn.textContent = '✎';
+      _editBtn.onclick = e => { e.stopPropagation(); openEditAnchorModal(s.id); };
+      const _delBtn = document.createElement('button');
+      _delBtn.className = 'doc-anchor-action-btn doc-anchor-del-btn'; _delBtn.title = 'Delete anchor'; _delBtn.textContent = '✕';
+      _delBtn.onclick = e => { e.stopPropagation(); openDeleteAnchorModal(s.id); };
+      item.querySelector('.doc-anchor-actions').append(_editBtn, _delBtn);
       chain.appendChild(item);
     });
     doc.appendChild(chain);
+  }
+
+  // ── Add-anchor button when no anchors exist yet ────────────────────
+  if (!anchors.length && sections.length) {
+    const addBtn = document.createElement('button');
+    addBtn.className = 'doc-add-anchor-btn doc-add-anchor-standalone';
+    addBtn.textContent = '+ add anchor';
+    addBtn.title = 'Anchors are invariants you write — the AI never generates them';
+    addBtn.onclick = () => openAddAnchorModal();
+    doc.appendChild(addBtn);
   }
 
   // ── Parts ───────────────────────────────────────────────────────
@@ -1596,11 +1810,11 @@ function renderMid() {
     // Header
     const header = document.createElement('div');
     header.className = 'doc-part-header';
+    header.onclick = e => { if (!e.target.closest('button')) clickPart(part.id); };
 
     const nameEl = document.createElement('div');
     nameEl.className = 'doc-part-name' + (isTargeted ? ' is-targeted' : '');
     nameEl.textContent = toPascalLabel(part.name);
-    nameEl.onclick = () => clickPart(part.id);
     header.appendChild(nameEl);
 
     if (isVerified) {
@@ -1625,7 +1839,13 @@ function renderMid() {
     // Section grid
     const grid = document.createElement('div');
     grid.className = 'doc-sections';
-    secs.forEach(s => grid.appendChild(buildSection(s, part.id)));
+const KW_ORDER = {STRUCTURE:0, DATA:1, ASSERT:2, WHEN:3, SURFACE:4, ANCHOR:5};
+        const sortedSecs = [...secs].sort((a,b) => {
+      const oa = KW_ORDER[a.keyword] ?? 99;
+      const ob = KW_ORDER[b.keyword] ?? 99;
+      return oa - ob;
+    });
+    sortedSecs.forEach(s => grid.appendChild(buildSection(s, part.id)));
     partEl.appendChild(grid);
 
     doc.appendChild(partEl);
@@ -1643,53 +1863,185 @@ function setScope(scope) {
 function drawHalos() { /* removed */ }
 
 
+// Keyword sort order within a part
+
 function buildSection(s, partId) {
   const isTargeted = targetSectionIds.includes(s.id);
-  const kw = s.keyword || 'DATA';
+  const isSole     = isTargeted && targetSectionIds.length === 1;
+  const kw         = s.keyword || 'DATA';
+  const isAnchor   = kw === 'ANCHOR';
+  const lockState  = s.lock_status || 'none';
+  const draft      = getDraftPrompt(s.id);
 
   const el = document.createElement('div');
   el.className = 'doc-section' + (isTargeted ? ' is-targeted' : '');
   el.id = `sec-${s.id}`;
   el.onclick = e => { e.stopPropagation(); clickSection(s.id, partId, e.shiftKey); };
 
+  // ── Keyword row (pill left, lock badge right) ───────────────────────────
   const kwRow = document.createElement('div');
   kwRow.className = `doc-kw doc-kw-${kw}`;
   const kwLabel = document.createElement('span');
   kwLabel.className = 'doc-kw-label';
   kwLabel.textContent = kw;
   kwRow.appendChild(kwLabel);
+  const lbCycle = {none:'approved', approved:'locked', locked:'none'};
+  const lbLabels = {none:'○ unlocked', approved:'✓ approved', locked:'⊘ locked'};
+  const lockBadge = document.createElement('button');
+  lockBadge.className = 'doc-lock-badge doc-lock-badge-' + lockState;
+  lockBadge.textContent = lbLabels[lockState] || '○';
+  lockBadge.title = isAnchor ? 'Anchor — always locked'
+                  : lockState === 'none'     ? 'Unlocked — click to approve'
+                  : lockState === 'approved' ? 'Approved — click to lock'
+                  :                            'Locked — click to unlock';
+  lockBadge.disabled = isAnchor;
+  lockBadge.onclick = e => {
+    e.stopPropagation();
+    if (isAnchor) return;
+    s.lock_status = lbCycle[lockState] || 'none';
+    if (project) fetch('/projects/mid', {method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({project_name:project.name,sections,parts})}).catch(()=>{});
+    renderMid(); renderStruct(); updateMetaBar();
+  };
+  kwRow.appendChild(lockBadge);
+  el.appendChild(kwRow);
 
+  // ── Section content ──────────────────────────────────────────────────────
   const nameEl = document.createElement('div');
   nameEl.className = 'doc-sec-name';
   nameEl.textContent = s.name;
+  el.appendChild(nameEl);
 
   const intentEl = document.createElement('div');
   intentEl.className = 'doc-intent';
   intentEl.textContent = s.intent_tag;
+  el.appendChild(intentEl);
 
   const bodyEl = document.createElement('div');
   bodyEl.className = 'doc-body';
   bodyEl.textContent = s.body;
+  el.appendChild(bodyEl);
 
-  el.append(kwRow, nameEl, intentEl, bodyEl);
+
+  // ── Tags ─────────────────────────────────────────────────────────────────
+  if (s.tags && s.tags.length) {
+    const tagsEl = document.createElement('div');
+    tagsEl.className = 'doc-sec-tags';
+    s.tags.forEach(t => {
+      const chip = document.createElement('span');
+      chip.className = 'doc-tag';
+      chip.textContent = '#' + t;
+      tagsEl.appendChild(chip);
+    });
+    el.appendChild(tagsEl);
+  }
+
+  // ── Draft ghost — shown on non-targeted card when a draft exists ─────────
+  if (!isSole && draft) {
+    const draftEl = document.createElement('div');
+    draftEl.className = 'doc-draft-ghost';
+    draftEl.textContent = draft;
+    el.appendChild(draftEl);
+  }
+
+  // ── Inline prompt — sole-targeted only ──────────────────────────────────
+  if (isSole && lockState !== 'locked') {
+    const inlineRow = document.createElement('div');
+    inlineRow.className = 'doc-inline-prompt';
+    inlineRow.onclick = e => e.stopPropagation();
+
+    const inlineTa = document.createElement('textarea');
+    inlineTa.className = 'doc-inline-ta';
+    inlineTa.placeholder = 'Refine this section…';
+    inlineTa.rows = 1;
+    if (draft) {
+      inlineTa.value = draft;
+      setTimeout(() => { inlineTa.style.height = inlineTa.scrollHeight + 'px'; }, 0);
+    }
+    inlineTa.oninput = function() {
+      this.style.height = 'auto';
+      this.style.height = this.scrollHeight + 'px';
+      document.getElementById('prompt-ta').value = this.value;
+      document.getElementById('btn-compile-prompt').disabled = !this.value.trim();
+      saveDraftPrompt(s.id, this.value);
+    };
+    inlineTa.onkeydown = function(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        if (this.value.trim()) { clearDraftPrompt(s.id); compileMidFromPrompt(); }
+      }
+      if (e.key === 'Escape') closeCmdBar();
+    };
+
+    inlineRow.appendChild(inlineTa);
+    el.appendChild(inlineRow);
+    setTimeout(() => {
+      inlineTa.focus();
+      if (draft) { const l = draft.length; inlineTa.setSelectionRange(l, l); }
+    }, 30);
+  }
+
   return el;
 }
 
 function clickPart(partId) {
-  // Plain click on already-targeted part (no sections) → deselect
   if (targetPartId === partId && !targetSectionIds.length) {
-    closeCmdBar();
-    return;
+    // Already targeting this part at part-level → deselect
+    closeCmdBar(); return;
   }
+  targetPartId = partId;
   targetSectionIds = [];
   setTarget(partId, [], parts.find(p => p.id === partId)?.name || partId);
   openCmdBar();
-  renderMid();
+  renderMid(); renderStruct();
+}
+
+// ── Draft prompt storage (in-memory, keyed by section id or "part:partId") ──
+const _draftPrompts = {};
+function saveDraftPrompt(key, val) { if (val && val.trim()) _draftPrompts[key] = val; else delete _draftPrompts[key]; }
+function getDraftPrompt(key) { return _draftPrompts[key] || ''; }
+function clearDraftPrompt(key) { delete _draftPrompts[key]; }
+
+// ── Undo / Redo ───────────────────────────────────────────────────────────
+function pushUndo(label) {
+  if (_undoIdx < _undoStack.length - 1) _undoStack = _undoStack.slice(0, _undoIdx + 1);
+  _undoStack.push({ sections: JSON.parse(JSON.stringify(sections)), parts: JSON.parse(JSON.stringify(parts)), label: label || 'edit' });
+  if (_undoStack.length > 60) _undoStack.shift();
+  _undoIdx = _undoStack.length - 1;
+  if (historyOpen) renderHistory();
+}
+
+function applyUndoState(idx) {
+  if (idx < 0 || idx >= _undoStack.length) return;
+  _undoIdx = idx;
+  const snap = _undoStack[idx];
+  sections = JSON.parse(JSON.stringify(snap.sections));
+  parts    = JSON.parse(JSON.stringify(snap.parts));
+  clearTarget(true);
+  renderMid(); renderStruct(); updateSidebarHeader(); updateStatBar();
+  if (historyOpen) renderHistory();
+  setStatus('Restored: ' + snap.label);
+  if (project) fetch('/projects/mid', { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ project_name: project.name, sections, parts }) }).catch(()=>{});
+}
+
+function undoStep() { if (!isGenerating) applyUndoState(_undoIdx - 1); }
+function redoStep() { if (!isGenerating) applyUndoState(_undoIdx + 1); }
+
+function flushDraftBeforeSwitch() {
+  if (targetSectionIds.length === 1) {
+    const ta = document.querySelector('.doc-inline-ta');
+    if (ta && ta.value.trim()) saveDraftPrompt(targetSectionIds[0], ta.value);
+  } else if (targetPartId && !targetSectionIds.length) {
+    const ta = document.getElementById('prompt-ta');
+    if (ta && ta.value.trim()) saveDraftPrompt('part:' + targetPartId, ta.value);
+  }
 }
 
 function clickSection(sectionId, partId, shift) {
+  flushDraftBeforeSwitch();
   if (shift && targetPartId === partId) {
-    // Shift-click: toggle within multi-selection
+    // Shift-click: toggle within same part
     if (targetSectionIds.includes(sectionId)) {
       targetSectionIds = targetSectionIds.filter(id => id !== sectionId);
       if (!targetSectionIds.length) { closeCmdBar(); return; }
@@ -1697,16 +2049,15 @@ function clickSection(sectionId, partId, shift) {
       targetSectionIds = [...targetSectionIds, sectionId];
     }
   } else if (!shift && targetSectionIds.length === 1 && targetSectionIds[0] === sectionId) {
-    // Plain click on the only selected item → deselect
-    closeCmdBar();
-    return;
+    // Click on the only selected section → deselect
+    closeCmdBar(); return;
   } else {
+    targetPartId = partId;
     targetSectionIds = [sectionId];
   }
   setTarget(partId, targetSectionIds);
   openCmdBar();
-  renderMid();
-  renderStruct();
+  renderMid(); renderStruct();
 }
 
 function scrollToSection(sectionId, shiftKey) {
@@ -1749,17 +2100,26 @@ function renderStruct() {
   wrap.innerHTML = '';
   if (empty) empty.style.display = 'none';
 
-  const partOrder = parts.length
-    ? parts.filter(p => sections.some(s => s.part_id === p.id))
+  // Build ordered part list — include __anchors if any anchor sections exist
+  const anchorSecs = sections.filter(s => s.keyword === 'ANCHOR' || s.part_id === '__anchors');
+  const regularParts = parts.length
+    ? parts.filter(p => p.id !== '__anchors' && sections.some(s => s.part_id === p.id))
     : [{id:'__all', name:'All', status:'draft'}];
+  const partOrder = [
+    ...(anchorSecs.length ? [{id:'__anchors', name:'Anchors', status:'locked'}] : []),
+    ...regularParts
+  ];
 
   partOrder.forEach((part, partIdx) => {
-    const secs = sections.filter(s => s.part_id === part.id);
+    const secs = part.id === '__anchors'
+      ? sections.filter(s => s.keyword === 'ANCHOR' || s.part_id === '__anchors')
+      : sections.filter(s => s.part_id === part.id);
     if (!secs.length) return;
 
     const status = part.status || 'draft';
-    const statusDotColor = status === 'verified' ? 'var(--c-state)'
+    const statusDotColor = status === 'verified' ? 'var(--c-data)'
                          : status === 'affected'  ? 'var(--c-warn)'
+                         : status === 'locked'    ? 'var(--c-anchor)'
                          : 'var(--text-4)';
     const firstKw = secs[0]?.keyword || 'DATA';
     const partColor = KW_COLOR[firstKw] || 'var(--text-4)';
@@ -1783,9 +2143,13 @@ function renderStruct() {
       item.className = 'nav-item' + (isSelected ? ' active' : '');
       item.style.setProperty('--item-color', isSelected ? 'var(--c-intent)' : kcolor);
       item.dataset.sectionId = s.id;
+      const lockMark = s.lock_status && s.lock_status !== 'none'
+        ? `<span style="font-size:8px;color:var(--c-anchor);opacity:.6;margin-left:4px" title="${s.lock_status}">⊘</span>` : '';
+      const tagMark = s.tags && s.tags.length
+        ? `<span style="font-family:var(--font-mono);font-size:8px;color:var(--text-4);margin-left:4px">${s.tags.map(t=>'#'+t).join(' ')}</span>` : '';
       item.innerHTML = `
         <span class="nav-dot" style="--item-color:${kcolor}"></span>
-        <span class="nav-name">${esc(s.name)}</span>`;
+        <span class="nav-name">${esc(s.name)}${lockMark}</span>${tagMark}`;
       item.onclick = e => {
         if (e.shiftKey) {
           scrollToSection(s.id, true);
@@ -1913,6 +2277,185 @@ async function acceptAffected() {
     } catch(e) { setStatus('Verify failed', 'error'); }
   }
   pendingAffected = [];
+}
+
+// ── Section deletion ────────────────────────────────────────────────
+
+async function requestDeleteSection(sectionId) {
+  const s = sections.find(x => x.id === sectionId);
+  if (!s) return;
+  if (s.lock_status === 'locked') {
+    setStatus('Section is locked — unlock it first to delete', 'error'); return;
+  }
+  if (s.lock_status === 'approved') {
+    const ok = confirm('"' + s.keyword + ': ' + s.name + '" is approved.\n\nDelete it? This is recorded in history.');
+    if (!ok) return;
+  }
+  if (!project) return;
+  try {
+    const r = await fetch('/projects/mid/delete-section', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ project_name: project.name, section_id: sectionId, sections, parts })
+    });
+    const d = await r.json();
+    if (r.status === 403) { setStatus(d.detail || 'Cannot delete locked section', 'error'); return; }
+    if (!r.ok) { setStatus(d.detail || 'Delete failed', 'error'); return; }
+    sections = d.sections;
+    pushUndo('delete: ' + (d.deleted ? d.deleted.name : sectionId));
+    if (d.history_entry) { promptHistory.push(d.history_entry); if (historyOpen) renderHistory(); }
+    if (d.cascade_refs && d.cascade_refs.length) {
+      const names = d.cascade_refs.map(r => r.keyword + ': ' + r.name).join(', ');
+      setStatus('Deleted. ' + d.cascade_refs.length + ' section(s) may reference this: ' + names, 'warn');
+    } else {
+      setStatus('Deleted: ' + d.deleted.keyword + ': ' + d.deleted.name);
+    }
+    closeCmdBar();
+    renderMid(); renderStruct(); updateSidebarHeader(); updateStatBar();
+  } catch(e) { setStatus('Delete error: ' + e.message, 'error'); }
+}
+
+// ── ANCHOR human-authoring ──────────────────────────────────────────────
+
+function openAddAnchorModal() {
+  _anchorEditId = null;
+  document.getElementById('anchor-name').value = '';
+  document.getElementById('anchor-body').value = '';
+  document.getElementById('anchor-tags').value = '';
+  document.getElementById('modal-anchor-title').textContent = 'Add Anchor';
+  document.getElementById('modal-anchor-sub').style.display = '';
+  document.getElementById('modal-anchor-confirm').textContent = 'Add Anchor';
+  document.getElementById('anchor-name').readOnly = false;
+  document.getElementById('modal-anchor').classList.add('on');
+  setTimeout(() => document.getElementById('anchor-name').focus(), 30);
+}
+
+function openEditAnchorModal(anchorId) {
+  const s = sections.find(x => x.id === anchorId);
+  if (!s) return;
+  _anchorEditId = anchorId;
+  document.getElementById('anchor-name').value = s.name;
+  document.getElementById('anchor-body').value = s.body;
+  document.getElementById('anchor-tags').value = s.tags && s.tags.length ? s.tags.map(t=>'#'+t).join(', ') : '';
+  document.getElementById('modal-anchor-title').textContent = 'Edit Anchor';
+  document.getElementById('modal-anchor-sub').style.display = 'none';
+  document.getElementById('modal-anchor-confirm').textContent = 'Save Changes';
+  document.getElementById('anchor-name').readOnly = true;
+  document.getElementById('modal-anchor').classList.add('on');
+  setTimeout(() => document.getElementById('anchor-body').focus(), 30);
+}
+
+function onDeleteAnchorInput() {
+  const s = sections.find(x => x.id === _deleteAnchorId);
+  const val = document.getElementById('delete-anchor-confirm-input').value.trim();
+  document.getElementById('btn-delete-anchor-confirm').disabled = !s || val !== s.name;
+}
+
+function openDeleteAnchorModal(anchorId) {
+  const s = sections.find(x => x.id === anchorId);
+  if (!s) return;
+  _deleteAnchorId = anchorId;
+  document.getElementById('delete-anchor-confirm-input').value = '';
+  document.getElementById('delete-anchor-name-hint').textContent = 'Name: ' + s.name;
+  document.getElementById('delete-anchor-confirm-input').placeholder = s.name;
+  document.getElementById('btn-delete-anchor-confirm').disabled = true;
+  document.getElementById('modal-delete-anchor').classList.add('on');
+  setTimeout(() => document.getElementById('delete-anchor-confirm-input').focus(), 30);
+}
+
+async function confirmDeleteAnchor() {
+  const s = sections.find(x => x.id === _deleteAnchorId);
+  if (!s) return;
+  sections = sections.filter(x => x.id !== _deleteAnchorId);
+  pushUndo('delete anchor: ' + s.name);
+  if (project) {
+    try { await fetch('/projects/mid', {method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({project_name:project.name,sections,parts})}); } catch(e) {}
+  }
+  closeModal('modal-delete-anchor');
+  renderMid(); renderStruct();
+  setStatus('Anchor deleted: ' + s.name);
+}
+
+async function confirmAddAnchor() {
+  const name = document.getElementById('anchor-name').value.trim().replace(/\s+/g,'_').toLowerCase();
+  const body = document.getElementById('anchor-body').value.trim();
+  const tagsRaw = document.getElementById('anchor-tags').value.trim();
+  if (!name || !body) { setStatus('Name and body required', 'error'); return; }
+  const tags = tagsRaw ? tagsRaw.split(',').map(t=>t.trim().replace(/^#/,'')).filter(Boolean) : [];
+  if (_anchorEditId) {
+    sections = sections.map(s => s.id === _anchorEditId ? {...s, body, tags} : s);
+  } else {
+    const anchor = {
+      id: 'a' + Date.now(), keyword: 'ANCHOR', name,
+      intent_tag: '', part_id: '__anchors',
+      code_marker: 'graft_' + name, body,
+      lock_status: 'locked', tags
+    };
+    sections = [...sections, anchor];
+    if (!parts.find(p => p.id === '__anchors')) {
+      parts = [{id:'__anchors', name:'Anchors', status:'locked'}, ...parts];
+    }
+  }
+  if (project) {
+    try {
+      await fetch('/projects/mid', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({project_name: project.name, sections, parts})
+      });
+    } catch(e) {}
+  }
+  pushUndo((_anchorEditId ? 'edit anchor: ' : 'add anchor: ') + name);
+  closeModal('modal-anchor');
+  renderMid(); renderStruct();
+  setStatus('Anchor added: ' + name);
+}
+
+// ── Section meta (tags + lock) ────────────────────────────────────────────
+
+function updateMetaBar() {
+  const row = document.getElementById('cmd-meta-row');
+  if (!row) return;
+  if (targetSectionIds.length !== 1) { row.style.display = 'none'; return; }
+  const s = sections.find(x => x.id === targetSectionIds[0]);
+  if (!s) { row.style.display = 'none'; return; }
+  row.style.display = 'flex';
+  const tagsInput = document.getElementById('cmd-meta-tags');
+  if (tagsInput) tagsInput.value = s.tags && s.tags.length ? s.tags.map(t=>'#'+t).join(', ') : '';
+  const delBtn = document.getElementById('cmd-meta-delete');
+  if (delBtn) delBtn.disabled = s.lock_status === 'locked';
+}
+function updateCmdMetaRow() { updateMetaBar(); }
+
+function commitSectionMeta() {
+  if (targetSectionIds.length !== 1) return;
+  const s = sections.find(x => x.id === targetSectionIds[0]);
+  if (!s) return;
+  const input = document.getElementById('cmd-meta-tags');
+  if (!input) return;
+  s.tags = input.value.split(',').map(t=>t.trim().replace(/^#/,'')).filter(Boolean);
+  renderMid(); renderStruct();
+  if (project) {
+    fetch('/projects/mid', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({project_name: project.name, sections, parts})
+    }).catch(()=>{});
+  }
+}
+
+function toggleSectionLock() {
+  if (targetSectionIds.length !== 1) return;
+  const s = sections.find(x => x.id === targetSectionIds[0]);
+  if (!s || s.keyword === 'ANCHOR') return;
+  const cycle = {none:'approved', approved:'locked', locked:'none'};
+  s.lock_status = cycle[s.lock_status] || 'none';
+  updateCmdMetaRow();
+  renderMid(); renderStruct();
+  if (project) {
+    fetch('/projects/mid', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({project_name: project.name, sections, parts})
+    }).catch(()=>{});
+  }
 }
 
 async function verifyPart(partId) {
@@ -2066,12 +2609,17 @@ function graftLabelClick(e, sectionId) {
   if (!sectionId) return;
   const s = sections.find(x => x.id === sectionId);
   if (!s) return;
+  flushDraftBeforeSwitch();
   targetPartId = s.part_id;
   targetSectionIds = [sectionId];
   setTarget(s.part_id, [sectionId]);
   openCmdBar();
-  scrollToSection(sectionId, false);
-  renderStruct();
+  switchTab('mid');
+  renderMid(); renderStruct();
+  setTimeout(() => {
+    const el = document.getElementById('sec-' + sectionId);
+    if (el) el.scrollIntoView({behavior:'smooth', block:'center'});
+  }, 80);
 }
 
 // Event delegation — handles clicks on graft region labels (avoids inline onclick)
@@ -2158,6 +2706,13 @@ updateButtons();
 
 // Global keyboard: '/' opens command bar, Escape closes
 document.addEventListener('keydown', e => {
+  // Undo/Redo (skip when inside input fields)
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'z') {
+    if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') { e.preventDefault(); undoStep(); return; }
+  }
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+    if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') { e.preventDefault(); redoStep(); return; }
+  }
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
   if (e.key === '/') {
     e.preventDefault();
@@ -2168,15 +2723,20 @@ document.addEventListener('keydown', e => {
   }
 });
 
-// Doc background click → close cmd bar if click is on empty doc area
+// Doc background click → close cmd bar when clicking empty space
 document.addEventListener('DOMContentLoaded', () => {
   const wrap = document.getElementById('mid-doc-wrap');
   if (wrap) {
     wrap.addEventListener('click', e => {
-      if (e.target.closest('.doc-section,.doc-part-name,.doc-part-verify,.doc-anchor-item,.cmd-bar,.cmd-history')) return;
-      closeCmdBar();
+      // Only close if click landed directly on the wrap or mid-doc (not on any interactive child)
+      const interactive = '.doc-section, .doc-part-name, .doc-part-verify, .doc-anchor-item, .cmd-bar, .cmd-history, .doc-part-header, button';
+      if (e.target.closest(interactive)) return;
+      if (targetPartId !== null || targetSectionIds.length) {
+        closeCmdBar();
+      }
     });
   }
+  // Prevent cmd-bar clicks from bubbling to wrap
   const cmdBar = document.getElementById('cmd-bar');
   if (cmdBar) cmdBar.addEventListener('click', e => e.stopPropagation());
 });

@@ -1,0 +1,14 @@
+[
+  {
+    "id": "__anchors",
+    "name": "Anchors",
+    "status": "locked",
+    "snapshots": []
+  },
+  {
+    "id": "Tasks",
+    "name": "Tasks",
+    "status": "draft",
+    "snapshots": []
+  }
+]

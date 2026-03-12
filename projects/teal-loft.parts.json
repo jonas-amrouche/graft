@@ -1,0 +1,14 @@
+[
+  {
+    "id": "Recipes",
+    "name": "Recipes",
+    "status": "draft",
+    "snapshots": []
+  },
+  {
+    "id": "Tasks",
+    "name": "Tasks",
+    "status": "draft",
+    "snapshots": []
+  }
+]

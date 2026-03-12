@@ -1,0 +1,20 @@
+[
+  {
+    "id": "__anchors",
+    "name": "Anchors",
+    "status": "locked",
+    "snapshots": []
+  },
+  {
+    "id": "Budget Tracker",
+    "name": "Budget Tracker",
+    "status": "draft",
+    "snapshots": []
+  },
+  {
+    "id": "Tasks",
+    "name": "Tasks",
+    "status": "draft",
+    "snapshots": []
+  }
+]

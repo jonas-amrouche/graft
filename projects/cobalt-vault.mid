@@ -1,0 +1,51 @@
+PART: Budget Tracker
+NAME: Budget Tracker
+STATUS: draft
+
+DATA: Budget Categories
+MARKER: budget_categories
+INTENT: holds all budget categories and their balances
+TAGS: #list
+---
+The app holds a list of budget categories. Each category has a name, a current balance, and a monthly limit.
+
+STRUCTURE: Home Screen
+MARKER: home_screen
+INTENT: the main screen showing the overall budget status
+TAGS: #list
+---
+The screen has a header with the app name, a summary of total income and expenses, a list of categories with their balances, and a floating add category button in the bottom right.
+
+WHEN: Add Category
+MARKER: add_category
+INTENT: user adds a new budget category
+TAGS: #form, #list, #user
+---
+When the user taps the add category button, a form appears. The user fills in the category name and monthly limit. The new category appears in the list with a zero balance.
+
+WHEN: Edit Category
+MARKER: edit_category
+INTENT: user updates an existing budget category
+TAGS: #card, #form, #list, #user
+---
+When the user taps the edit icon on a category card, a form appears. The user can change the category name and monthly limit. The changes are saved, and the category is updated in the list.
+
+WHEN: Add Expense
+MARKER: add_expense
+INTENT: user adds a new expense
+TAGS: #amount, #form, #list, #user
+---
+When the user taps the add expense button, a form appears. The user selects a category, enters the amount, and adds a description. The new expense is added to the selected category's balance and displayed in a list of recent expenses.
+
+ASSERT: Category Limits
+MARKER: category_limits
+INTENT: ensure categories do not exceed their monthly limits
+---
+A category's balance cannot exceed its monthly limit. If a category's balance reaches its limit, no further expenses can be added to that category until the next month.
+
+SURFACE: Category Card
+MARKER: category_card
+INTENT: display category information
+TAGS: #card
+---
+Each category card shows the category name, current balance, and monthly limit. The card background color changes to indicate the category's balance status: green for under budget, yellow for nearing limit, and red for over budget.

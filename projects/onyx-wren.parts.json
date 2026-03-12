@@ -1,0 +1,25 @@
+[
+  {
+    "id": "Budget Tracker",
+    "name": "Budget Tracker",
+    "status": "draft",
+    "snapshots": [
+      {
+        "timestamp": "2026-03-12T10:29:15.247932+00:00",
+        "sections_hash": "0c469037ce14d003",
+        "sections_text": "PART: Budget Tracker\nNAME: Budget Tracker\nSTATUS: draft\n\nDATA: Budget Categories\nMARKER: budget_categories\nINTENT: holds all budget categories and their balances\n---\nThe app holds a list of budget categories. Each category has a name, a current balance, and a monthly limit.\n\nSTRUCTURE: Home Screen\nMARKER: home_screen\nINTENT: the main screen showing budget overview\n---\nThe screen has a header with the app name, a summary of total income and expenses, a list of categories with their balances, and a button to add a new category at the bottom.\n\nWHEN: Add Category\nMARKER: add_category\nINTENT: user adds a new budget category\n---\nWhen the user taps the \"Add Category\" button, a form appears. The user fills in the category name and monthly limit. The new category is added to the list and its balance is set to zero.\n\nWHEN: Update Category Balance\nMARKER: update_category_balance\nINTENT: user updates a category's balance\n---\nWhen the user taps the edit icon on a category card, a form appears. The user can adjust the balance. The updated balance is saved and reflected in the list.\n\nASSERT: Category Limits\nMARKER: category_limits\nINTENT: ensure categories do not exceed their limits\n---\nA category's balance cannot exceed its monthly limit. If a category's balance exceeds its limit, an alert is shown to the user.\n\nSURFACE: Category Card\nMARKER: category_card\nINTENT: display category information\n---\nEach category card shows the category name, current balance, and monthly limit. The balance is displayed in a color-coded format: green for under budget, yellow for close to budget, and red for over budget."
+      },
+      {
+        "timestamp": "2026-03-12T10:29:17.423952+00:00",
+        "sections_hash": "0c469037ce14d003",
+        "sections_text": "PART: Budget Tracker\nNAME: Budget Tracker\nSTATUS: draft\n\nDATA: Budget Categories\nMARKER: budget_categories\nINTENT: holds all budget categories and their balances\n---\nThe app holds a list of budget categories. Each category has a name, a current balance, and a monthly limit.\n\nSTRUCTURE: Home Screen\nMARKER: home_screen\nINTENT: the main screen showing budget overview\n---\nThe screen has a header with the app name, a summary of total income and expenses, a list of categories with their balances, and a button to add a new category at the bottom.\n\nWHEN: Add Category\nMARKER: add_category\nINTENT: user adds a new budget category\n---\nWhen the user taps the \"Add Category\" button, a form appears. The user fills in the category name and monthly limit. The new category is added to the list and its balance is set to zero.\n\nWHEN: Update Category Balance\nMARKER: update_category_balance\nINTENT: user updates a category's balance\n---\nWhen the user taps the edit icon on a category card, a form appears. The user can adjust the balance. The updated balance is saved and reflected in the list.\n\nASSERT: Category Limits\nMARKER: category_limits\nINTENT: ensure categories do not exceed their limits\n---\nA category's balance cannot exceed its monthly limit. If a category's balance exceeds its limit, an alert is shown to the user.\n\nSURFACE: Category Card\nMARKER: category_card\nINTENT: display category information\n---\nEach category card shows the category name, current balance, and monthly limit. The balance is displayed in a color-coded format: green for under budget, yellow for close to budget, and red for over budget."
+      }
+    ]
+  },
+  {
+    "id": "__anchors",
+    "name": " Anchors",
+    "status": "draft",
+    "snapshots": []
+  }
+]

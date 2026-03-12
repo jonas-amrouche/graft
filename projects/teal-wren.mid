@@ -1,0 +1,50 @@
+PART: Tasks
+NAME: Tasks
+STATUS: draft
+
+DATA: Task List
+MARKER: task_list
+INTENT: holds all tasks and their state
+---
+The app holds a list of tasks. Each task has a title, a status, and a due date.
+
+STRUCTURE: Task Screen
+MARKER: task_screen
+INTENT: the main screen showing all tasks
+---
+The screen has a top bar with the app name, a scrollable list of task cards, and a floating add button in the bottom right.
+
+WHEN: Add Task
+MARKER: add_task
+INTENT: user adds a new task
+---
+When the user taps the add button, a form appears. The user fills in the title and due date. The new task appears at the top of the list.
+
+WHEN: Complete Task
+MARKER: complete_task
+INTENT: user marks a task as done
+---
+When the user taps the checkbox on a task card, the task status changes to complete. The card moves to the bottom of the list with a strikethrough style.
+
+ASSERT: Task Validation
+MARKER: task_validation
+INTENT: rules for task creation and editing
+---
+A task title cannot be empty. A task must have a due date.
+
+SURFACE: Task Screen
+MARKER: task_screen_surface
+INTENT: labels and text for the task screen
+---
+The add button is labeled "New Task". The checkbox in the task card toggles between "Not Started" and "Complete". The due date is displayed in "MM/DD/YYYY" format. Error messages appear below the form fields if validation fails.
+---PART---
+
+PART: __anchors
+NAME:  Anchors
+STATUS: draft
+
+ANCHOR: Task Ownership
+MARKER: task_ownership
+INTENT: foundational rule for task ownership
+---
+All tasks belong to the authenticated user. Tasks cannot be assigned to other users.

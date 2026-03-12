@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Budget App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .header {
+            text-align: center;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .category {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        .category button {
+            margin-left: 10px;
+        }
+        .form {
+            display: none;
+            margin-top: 20px;
+        }
+        .form input {
+            margin-bottom: 10px;
+        }
+        .form button {
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Budget App</h1>
+    </div>
+    <div id="budget-screen">
+        <button id="add-category-btn">Add Category</button>
+        <div id="categories">
+            <!-- Categories will be added here -->
+        </div>
+    </div>
+
+    <script>
+        const budgetCategories = [];
+
+        function renderCategories() {
+            const categoriesContainer = document.getElementById('categories');
+            categoriesContainer.innerHTML = '';
+            budgetCategories.forEach(category => {
+                const categoryDiv = document.createElement('div');
+                categoryDiv.className = 'category';
+                categoryDiv.innerHTML = `
+                    <div>${category.name} - Balance: ${category.balance} / ${category.limit}</div>
+                    <button onclick="editCategory(${budgetCategories.indexOf(category)})">Edit</button>
+                    <button onclick="deleteCategory(${budgetCategories.indexOf(category)})">Delete</button>
+                `;
+                categoriesContainer.appendChild(categoryDiv);
+            });
+        }
+
+        function addCategory() {
+            const categoryName = document.getElementById('category-name').value;
+            const monthlyLimit = parseFloat(document.getElementById('monthly-limit').value);
+            if (isNaN(monthlyLimit) || monthlyLimit <= 0) {
+                alert('Invalid monthly limit');
+                return;
+            }
+            budgetCategories.push({ name: categoryName, balance: 0, limit: monthlyLimit });
+            renderCategories();
+            document.getElementById('category-name').value = '';
+            document.getElementById('monthly-limit').value = '';
+            document.querySelector('.form').style.display = 'none';
+        }
+
+        function editCategory(index) {
+            const category = budgetCategories[index];
+            document.getElementById('category-name').value = category.name;
+            document.getElementById('monthly-limit').value = category.limit;
+            document.querySelector('.form').style.display = 'block';
+            document.querySelector('.form button').onclick = () => {
+                category.name = document.getElementById('category-name').value;
+                category.limit = parseFloat(document.getElementById('monthly-limit').value);
+                renderCategories();
+                document.querySelector('.form').style.display = 'none';
+            };
+        }
+
+        function deleteCategory(index) {
+            budgetCategories.splice(index, 1);
+            renderCategories();
+        }
+
+        document.getElementById('add-category-btn').onclick = () => {
+            document.querySelector('.form').style.display = 'block';
+            document.querySelector('.form button').onclick = addCategory;
+        };
+
+        renderCategories();
+    </script>
+</body>
+</html>

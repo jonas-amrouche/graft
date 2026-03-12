@@ -71,16 +71,22 @@ def save_config(cfg: dict):
     with open(CONFIG_FILE, "w") as f:
         json.dump(cfg, f, indent=2)
 
+# ── Mid v2 constants ──────────────────────────────────────────────────────────
+KEYWORDS = {"ANCHOR", "STRUCTURE", "DATA", "WHEN", "ASSERT", "SURFACE"}
+ANCHOR_PART = "__anchors"
+
 # ── Data models ───────────────────────────────────────────────────────────────
 
 class MidSection(BaseModel):
     id: str
-    keyword: str                     # STATE | TYPE | STRUCTURE | WHEN
-    name: str                        # snake_case identifier
-    intent_tag: str                  # the human intent phrase
-    part_id: str                     # which part this section belongs to
-    code_marker: str = ""            # graft:section_name — links to code block
+    keyword: str                     # ANCHOR | STRUCTURE | DATA | WHEN | ASSERT | SURFACE
+    name: str
+    intent_tag: str
+    part_id: str                     # "__anchors" for ANCHOR sections
+    code_marker: str = ""
     body: str
+    lock_status: str = "none"        # none | approved | locked
+    tags: list[str] = []
 
 class MidPartSnapshot(BaseModel):
     timestamp: str
@@ -207,11 +213,15 @@ def sections_to_text(sections: list[MidSection], parts: list[MidPart] = []) -> s
         header = f"PART: {part.id}\nNAME: {part.name}\nSTATUS: {part.status}"
         sec_blocks = []
         for s in secs:
-            marker_line = f"MARKER: {s.code_marker}" if s.code_marker else ""
             lines = [f"{s.keyword}: {s.name}"]
-            if marker_line:
-                lines.append(marker_line)
-            lines += [f"INTENT: {s.intent_tag}", "---", s.body.strip()]
+            if s.code_marker:
+                lines.append(f"MARKER: {s.code_marker}")
+            lines.append(f"INTENT: {s.intent_tag}")
+            if s.lock_status and s.lock_status != 'none':
+                lines.append(f"LOCK: {s.lock_status}")
+            if s.tags:
+                lines.append(f"TAGS: {', '.join('#'+t for t in s.tags)}")
+            lines += ["---", s.body.strip()]
             sec_blocks.append("\n".join(lines))
         blocks.append(header + "\n\n" + "\n\n".join(sec_blocks))
 
@@ -259,7 +269,7 @@ def _parse_new_format(text: str) -> tuple[list[MidSection], list[MidPart]]:
 
         # Parse sections within this part
         body_text = '\n'.join(lines[header_end:])
-        raw_secs = re.split(r'\n(?=(?:STATE|TYPE|STRUCTURE|WHEN):\s)', body_text.strip())
+        raw_secs = re.split(r'\n(?=(?:ANCHOR|STRUCTURE|DATA|WHEN|ASSERT|SURFACE|STATE|TYPE):\s)', body_text.strip())
         for raw in raw_secs:
             raw = raw.strip()
             if not raw:
@@ -273,7 +283,7 @@ def _parse_new_format(text: str) -> tuple[list[MidSection], list[MidPart]]:
 
 def _parse_legacy_format(text: str) -> tuple[list[MidSection], list[MidPart]]:
     """Load old owner-based .mid files. All sections go into a single part per owner."""
-    raw_sections = re.split(r'\n(?=(?:STATE|TYPE|STRUCTURE|WHEN):\s)', text.strip())
+    raw_sections = re.split(r'\n(?=(?:ANCHOR|STRUCTURE|DATA|WHEN|ASSERT|SURFACE|STATE|TYPE):\s)', text.strip())
     sections = []
     owner_names: dict[str, str] = {}
 
@@ -299,41 +309,56 @@ def _parse_legacy_format(text: str) -> tuple[list[MidSection], list[MidPart]]:
 
 def _parse_section_block(raw: str, part_id: str, section_id: str) -> Optional[MidSection]:
     lines = raw.split('\n')
-    keyword = name = intent_tag = code_marker = ''
+    keyword = name = intent_tag = code_marker = lock_status = ''
+    tags: list[str] = []
     body_lines = []
     in_body = False
+    KW_RE = r'^(ANCHOR|STRUCTURE|DATA|WHEN|ASSERT|SURFACE|STATE|TYPE):\s*(.*)'
 
     for line in lines:
         if in_body:
             body_lines.append(line)
             continue
-        m = re.match(r'^(STATE|TYPE|STRUCTURE|WHEN):\s*(.*)', line, re.IGNORECASE)
+        m = re.match(KW_RE, line, re.IGNORECASE)
         if m and not keyword:
-            keyword = m.group(1).upper()
+            raw_kw = m.group(1).upper()
+            # Normalize legacy aliases
+            keyword = 'DATA' if raw_kw in ('STATE', 'TYPE') else raw_kw
             name = m.group(2).strip()
         elif line.startswith('MARKER:'):
             code_marker = line[7:].strip()
         elif line.startswith('INTENT:'):
             intent_tag = line[7:].strip()
+        elif line.startswith('LOCK:'):
+            lock_status = line[5:].strip()
+        elif line.startswith('TAGS:'):
+            tags = [t.strip().lstrip('#') for t in line[5:].split(',') if t.strip()]
         elif line.startswith('OWNER:'):
-            pass  # legacy — ignored in new format
+            pass  # legacy
         elif line.strip() == '---':
             in_body = True
         else:
+            if not keyword:  # stray lines before keyword — skip
+                continue
             body_lines.append(line)
 
     body = clean_body('\n'.join(body_lines).strip())
-    if keyword and body and len(body) > 20:
-        marker = code_marker or f"graft_{name}" if name else ""
-        final_part_id = ANCHOR_PART if keyword == 'ANCHOR' else part_id
-        final_lock = 'locked' if keyword == 'ANCHOR' else (lock_status or 'none')
-        return MidSection(
-            id=section_id, keyword=keyword, name=name,
-            intent_tag=intent_tag, part_id=final_part_id,
-            code_marker=marker, body=body,
-            lock_status=final_lock, tags=tags
-        )
-    return None
+    if not keyword:
+        return None
+    # ANCHOR and STRUCTURE can have short bodies (even empty intent is ok)
+    min_len = 0 if keyword in ('ANCHOR', 'STRUCTURE') else 5
+    if len(body) < min_len and not intent_tag:
+        return None
+
+    marker = code_marker or (f"graft_{name.lower().replace(' ','_')}" if name else "")
+    final_part_id = ANCHOR_PART if keyword == 'ANCHOR' else part_id
+    final_lock = 'locked' if keyword == 'ANCHOR' else (lock_status or 'none')
+    return MidSection(
+        id=section_id, keyword=keyword, name=name,
+        intent_tag=intent_tag, part_id=final_part_id,
+        code_marker=marker, body=body,
+        lock_status=final_lock, tags=tags
+    )
 
 def sections_for_part(part_id: str, sections: list[MidSection]) -> list[MidSection]:
     return [s for s in sections if s.part_id == part_id]
@@ -601,9 +626,9 @@ Mid is a plain-English design language between intent and code. Six keywords:
 - WHEN      — one user action and its exact result
 - ASSERT    — a rule that must always be true (validation, permissions, invariants)
 - SURFACE   — all text the user reads: labels, messages, empty states
-- ANCHOR    — a foundational axiom that never changes (use sparingly, 0-3 per app)
+- ANCHOR    — DO NOT output. ANCHOR sections are written by humans only. If you output one it will be discarded.
 
-Group sections into 2–4 named PARTS by domain. ANCHOR sections go in a special PART: __anchors block if used.
+Group sections into 2–4 named PARTS by domain.
 
 Output format:
 
@@ -651,8 +676,7 @@ KEYWORDS — use all that apply:
   SURFACE   — all text the user reads: labels, button names, empty states, error messages, placeholder text.
               Example: The add button is labeled "New Task". The empty state reads "No tasks yet — add one above".
 
-  ANCHOR    — a foundational rule that never changes. Use 0-3 per app, only for genuine invariants.
-              Example: All data belongs to the authenticated user. Sessions expire after 30 days of inactivity.
+  ANCHOR    — DO NOT output. ANCHOR sections are human-authored only. Any ANCHOR you output will be discarded.
 
 HARD RULES:
 - No bullet points. Prose only.
@@ -665,7 +689,7 @@ PARTS — group related sections under a shared PART_ID:
 - Every app needs 2–4 parts. Never use "global" or "app" as a part name.
 - Good part names: "Tasks", "Auth", "Dashboard", "Settings".
 - DATA and STRUCTURE for the same feature belong in the same part.
-- ANCHOR sections use PART_ID: __anchors (special reserved part).
+- Never output ANCHOR sections — they are human-authored only.
 {verbosity_block}
 EXISTING MID:
 {existing_block}
@@ -729,15 +753,49 @@ CONTEXT (read-only):
 def mid_to_code_prompt(mid: str) -> str:
     return f"""Produce a single complete working HTML file from this Mid document.
 
-- Output ONLY HTML. No markdown fences. Nothing before <!DOCTYPE html>.
+Rules:
+- Output ONLY raw HTML. No markdown fences, no explanation. Start with <!DOCTYPE html>.
 - CSS in <style> in <head>. JS in <script> before </body>.
-- Wrap each WHEN implementation: // [graft:marker] ... // [/graft:marker]
-- Implement STRUCTURE exactly. Use STATE/TYPE for the data model.
+- ANCHOR: implement invariants exactly as described.
+- STRUCTURE: implement the UI layout described.
+- DATA: use the exact data shapes and names described.
+- WHEN: wrap each behaviour block — // [graft:marker] ... // [/graft:marker]
+- ASSERT: enforce the constraints described.
+- SURFACE: use the exact copy/strings described.
 
 {mid}
 """
 
 # ── Parse compile output ──────────────────────────────────────────────────────
+
+# Common domain keywords to extract as tags
+_TAG_WORDS = {
+    'auth','user','users','session','token','login','logout',
+    'data','form','input','validation','error','state',
+    'list','table','grid','card','modal','dialog','panel',
+    'search','filter','sort','pagination',
+    'task','item','note','message','event',
+    'upload','file','image','media',
+    'nav','menu','route','page',
+    'api','fetch','request','response','async',
+    'date','time','calendar',
+    'price','cost','amount','currency',
+    'role','permission','admin',
+}
+
+# All Mid keyword names — never emit these as tags, they carry no information
+_KW_NAMES = {'anchor','structure','data','when','assert','surface','state','type'}
+
+def derive_tags(s: MidSection) -> list[str]:
+    """Derive tags from section body text only. Keywords are never tags."""
+    tags = set()
+    # Extract domain words from body + name, but never keyword names
+    words = re.findall(r'[a-z]+', (s.name + ' ' + s.body).lower())
+    for w in words:
+        if w in _TAG_WORDS and w not in _KW_NAMES:
+            tags.add(w)
+    return sorted(tags)[:6]  # cap at 6
+
 
 def parse_compile_output(text: str, existing_sections: list[MidSection],
                           existing_parts: list[MidPart]) -> tuple[list[MidSection], list[MidPart], list[str]]:
@@ -791,7 +849,7 @@ def parse_compile_output(text: str, existing_sections: list[MidSection],
 
             if in_body:
                 # Stop collecting body if we hit another keyword (malformed block)
-                if re.match(r'^(STATE|TYPE|STRUCTURE|WHEN|PART(?:_ID)?|NAME|MARKER|INTENT|STATUS):\s', ls, re.IGNORECASE):
+                if re.match(r'^(ANCHOR|STRUCTURE|DATA|WHEN|ASSERT|SURFACE|STATE|TYPE|PART(?:_ID)?|NAME|MARKER|INTENT|STATUS|LOCK|TAGS):\s', ls, re.IGNORECASE):
                     break
                 body_lines.append(line)
                 continue
@@ -864,7 +922,7 @@ def parse_compile_output(text: str, existing_sections: list[MidSection],
                 intent_tag=intent, part_id=pid,
                 code_marker=marker, body=body,
                 lock_status='locked' if keyword == 'ANCHOR' else 'none',
-                tags=[]
+                tags=[],  # tags not set from AI output; preserved from existing in merge step
             )
         return None
 
@@ -920,6 +978,9 @@ def parse_compile_output(text: str, existing_sections: list[MidSection],
                     code_marker=f"graft_{nm}", body=body
                 ))
 
+    # Strip AI-generated ANCHOR sections (ANCHOR is human-only)
+    new_or_changed = [s for s in new_or_changed if s.keyword != 'ANCHOR']
+
     # ── Merge with existing ───────────────────────────────────────────────────
     # Key on (keyword, name) so "STATE: Task Board" and "STRUCTURE: Task Board"
     # are treated as distinct sections and don't overwrite each other.
@@ -939,17 +1000,23 @@ def parse_compile_output(text: str, existing_sections: list[MidSection],
         key = sec_key(s)
         if key in result_map:
             old = result_map[key]
+            # Preserve lock_status. Tags: re-derive if body changed, keep manual overrides.
+            new_tags = derive_tags(s) if s.body != old.body else old.tags
             result_map[key] = MidSection(
                 id=old.id, keyword=s.keyword, name=s.name,
                 intent_tag=s.intent_tag, part_id=s.part_id or old.part_id,
-                code_marker=s.code_marker or old.code_marker, body=s.body
+                code_marker=s.code_marker or old.code_marker, body=s.body,
+                lock_status=old.lock_status,   # never let AI overwrite lock
+                tags=new_tags,
             )
         else:
             new_id = f"s{len(result_map)}"
             result_map[key] = MidSection(
                 id=new_id, keyword=s.keyword, name=s.name,
                 intent_tag=s.intent_tag, part_id=s.part_id or "global",
-                code_marker=s.code_marker, body=s.body
+                code_marker=s.code_marker, body=s.body,
+                lock_status='locked' if s.keyword == 'ANCHOR' else 'none',
+                tags=derive_tags(s),
             )
 
     merged_sections = list(result_map.values())
@@ -975,11 +1042,25 @@ def parse_compile_output(text: str, existing_sections: list[MidSection],
 async def stream_ollama(cfg: dict, prompt: str):
     url = cfg.get("ollama_url", "http://localhost:11434")
     model = cfg.get("ollama_model", "mistral:latest")
+    # Estimate prompt token count (rough: 1 token ≈ 4 chars)
+    prompt_tokens = len(prompt) // 4
+    # Give at least 2048 tokens for generation; expand context window if prompt is large
+    min_gen = 2048
+    ctx = max(4096, prompt_tokens + min_gen)
     full = []
     try:
         async with httpx.AsyncClient(timeout=600.0) as client:
             async with client.stream("POST", f"{url}/api/generate",
-                json={"model": model, "prompt": prompt, "stream": True}) as resp:
+                json={
+                    "model": model,
+                    "prompt": prompt,
+                    "stream": True,
+                    "options": {
+                        "num_ctx": ctx,          # context window large enough for prompt + output
+                        "num_predict": min_gen,  # max tokens to generate
+                        "temperature": 0.2,      # low temp for deterministic code
+                    }
+                }) as resp:
                 if resp.status_code != 200:
                     err = await resp.aread()
                     yield f"data: {json.dumps({'error': err.decode()})}\n\n"
@@ -1290,6 +1371,52 @@ async def post_mid(req: SaveMidRequest):
 @app.get("/projects/{name}/history")
 async def get_history(name: str):
     return {"history": [e.dict() for e in load_history(name)]}
+
+class DeleteSectionRequest(BaseModel):
+    project_name: str
+    section_id: str
+    sections: list[MidSection]
+    parts: list[MidPart]
+
+@app.post("/projects/mid/delete-section")
+async def delete_section(req: DeleteSectionRequest):
+    target = next((s for s in req.sections if s.id == req.section_id), None)
+    if not target:
+        raise HTTPException(status_code=404, detail="Section not found")
+    if target.lock_status == "locked":
+        raise HTTPException(status_code=403, detail="Section is locked and cannot be deleted")
+
+    # Cascade: find sections that reference this section by name/marker
+    refs = []
+    for s in req.sections:
+        if s.id == req.section_id: continue
+        if target.name and target.name.lower() in s.body.lower():
+            refs.append({"id": s.id, "keyword": s.keyword, "name": s.name})
+
+    new_sections = [s for s in req.sections if s.id != req.section_id]
+
+    # Write a history entry recording the deletion
+    entry = PromptHistoryEntry(
+        id=f"del_{req.section_id}_{int(__import__('time').time())}",
+        timestamp=__import__('datetime').datetime.utcnow().isoformat(),
+        prompt=f"[DELETED] {target.keyword}: {target.name}",
+        target_part_id=target.part_id,
+        target_section_ids=[req.section_id],
+        sections_added=[],
+        sections_modified=[],
+        sections_removed=[req.section_id],
+    )
+    append_history(req.project_name, entry)
+    save_mid(req.project_name, new_sections, req.parts)
+
+    return {
+        "saved": True,
+        "sections": [s.dict() for s in new_sections],
+        "parts": req.parts,
+        "deleted": {"id": target.id, "keyword": target.keyword, "name": target.name},
+        "cascade_refs": refs,
+        "history_entry": entry.dict(),
+    }
 
 # ── Routes: code ──────────────────────────────────────────────────────────────
 

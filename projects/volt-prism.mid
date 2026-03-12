@@ -1,0 +1,97 @@
+PART: __anchors
+NAME: Anchors
+STATUS: locked
+
+ANCHOR: user_info_security
+MARKER: graft_user_info_security
+INTENT: 
+LOCK: locked
+---
+user information should always be secured in a private space
+---PART---
+
+PART: Budget Tracker
+NAME: Budget Tracker
+STATUS: draft
+
+DATA: Budget Categories
+MARKER: budget_categories
+INTENT: holds all budget categories and their balances
+TAGS: #list
+---
+The app holds a list of budget categories. Each category has a name, a current balance, and a monthly budget limit.
+
+STRUCTURE: Dashboard Screen
+MARKER: dashboard_screen
+INTENT: the main screen showing all budget categories and their balances
+---
+The screen has a header with the app name, a section for each budget category with its name, current balance, and budget limit, and a summary at the bottom with total balance and percentage spent.
+
+WHEN: Add Category
+MARKER: add_category
+INTENT: user adds a new budget category
+TAGS: #form, #list, #user
+---
+When the user taps the "Add Category" button, a form appears. The user fills in the category name and budget limit. The new category is added to the list and displayed on the dashboard.
+
+WHEN: Update Category Balance
+MARKER: update_category_balance
+INTENT: user updates the balance of a budget category
+TAGS: #card, #form, #user
+---
+When the user taps the "Edit" button on a category card, a form appears. The user updates the balance and saves the changes. The updated balance is reflected in the category card and the summary at the bottom.
+
+ASSERT: Category Balance Validation
+MARKER: category_balance_validation
+INTENT: ensure category balance does not exceed budget limit
+TAGS: #error, #message, #user, #validation
+---
+A category's balance cannot exceed its budget limit. If the user tries to add more than the budget limit, an error message appears.
+
+SURFACE: Error Messages
+MARKER: error_messages
+INTENT: error messages displayed to the user
+TAGS: #error, #message, #user
+---
+The error message reads "Balance cannot exceed budget limit" when the user tries to add more than the budget limit.
+
+STRUCTURE: Stats Panel
+MARKER: stats_panel
+INTENT: displays summary statistics for budget categories
+TAGS: #panel, #table, #task
+---
+The screen has a section below the task section with a header "Budget Summary". This section includes a pie chart showing the distribution of balances across all categories and a table listing each category with its name, current balance, and budget limit. Below the table, there is a summary row showing the total balance and the percentage of the total budget spent.
+---PART---
+
+PART: Tasks
+NAME: Tasks
+STATUS: draft
+
+STRUCTURE: Task Screen
+MARKER: task_screen
+INTENT: the main screen showing all tasks
+LOCK: approved
+TAGS: #list, #task
+---
+The screen has a top bar with the app name, a scrollable list of task cards, and a floating add button in the bottom right. Additionally, there is a "Yay" button at the bottom right.
+
+WHEN: Complete Task
+MARKER: complete_task
+INTENT: user marks a task as done
+TAGS: #card, #list, #task, #user
+---
+When the user taps the checkbox on a task card, the task status changes to complete. The card moves to the bottom of the list with a strikethrough style.
+
+WHEN: Tap Task Completed Button
+MARKER: tap_task_completed_button
+INTENT: user confirms task completion
+TAGS: #card, #dialog, #list, #task, #user
+---
+When the user taps the "Task Completed" button on a task card, a confirmation dialog appears. If the user confirms, the task is marked as complete and moved to the bottom of the list with a strikethrough style. If the user cancels, the task remains unchanged.
+
+WHEN: Tap Yay Button
+MARKER: tap_yay_button
+INTENT: user taps the "Yay" button to create a new task
+TAGS: #form, #list, #task, #user
+---
+When the user taps the "Yay" button, a new task form appears. The user fills in the title and confirms. The new task appears at the top of the list.
