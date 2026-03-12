@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task List</title>
+    <style>
+        // [graft:surface]
+        .task-card {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .task-card.completed {
+            text-decoration: line-through;
+        }
+        .task-card input[type="checkbox"] {
+            margin-right: 10px;
+        }
+        .add-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        // [/graft:surface]
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div id="top-bar">Task List</div>
+        <div id="task-list"></div>
+        <button class="add-button" onclick="addTask()">Add Task</button>
+    </div>
+
+    <script>
+        // [graft:data]
+        let tasks = [];
+        // [/graft:data]
+
+        // [graft:structure]
+        function renderTaskList() {
+            const taskList = document.getElementById('task-list');
+            taskList.innerHTML = '';
+            tasks.forEach(task => {
+                const card = document.createElement('div');
+                card.className = `task-card ${task.completed ? 'completed' : ''}`;
+                card.innerHTML = `
+                    <input type="checkbox" ${task.completed ? 'checked' : ''} onclick="completeTask(${tasks.indexOf(task)})">
+                    <span>${task.title}</span>
+                    <span>${task.date}</span>
+                `;
+                taskList.appendChild(card);
+            });
+        }
+        // [/graft:structure]
+
+        // [graft:when]
+        function addTask() {
+            const title = prompt('Enter task title:');
+            if (title && title.trim() !== '') {
+                const task = {
+                    title: title.trim(),
+                    completed: false,
+                    date: new Date().toLocaleString()
+                };
+                tasks.unshift(task);
+                renderTaskList();
+            }
+        }
+
+        function completeTask(index) {
+            tasks[index].completed = !tasks[index].completed;
+            renderTaskList();
+        }
+        // [/graft:when]
+
+        // [graft:assert]
+        function validateTaskTitle(title) {
+            if (title.trim() === '') {
+                alert('Task title cannot be empty.');
+                return false;
+            }
+            return true;
+        }
+        // [/graft:assert]
+
+        // [graft:anchor]
+        renderTaskList();
+        // [/graft:anchor]
+    </script>
+</body>
+</html>

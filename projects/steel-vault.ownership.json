@@ -1,0 +1,26 @@
+{
+  "data": {
+    "content": "\n        const budgetCategories = [\n            { name: 'Groceries', balance: 0, limit: 500 },\n            { name: 'Utilities', balance: 0, limit: 200 },\n            { name: 'Entertainment', balance: 0, limit: 100 }\n        ];\n        ",
+    "full": "// [graft:data]\n        const budgetCategories = [\n            { name: 'Groceries', balance: 0, limit: 500 },\n            { name: 'Utilities', balance: 0, limit: 200 },\n            { name: 'Entertainment', balance: 0, limit: 100 }\n        ];\n        // [/graft:data]"
+  },
+  "structure": {
+    "content": "\n        function renderDashboard() {\n            const dashboard = document.getElementById('dashboard');\n            dashboard.innerHTML = '';\n            budgetCategories.forEach(category => {\n                const categoryDiv = document.createElement('div');\n                categoryDiv.className = 'category';\n                categoryDiv.innerHTML = `\n                    <h3>${category.name}</h3>\n                    <p>Balance: $${category.balance}</p>\n                    <p>Limit: $${category.limit}</p>\n                    <button onclick=\"editCategory('${category.name}')\">Edit</button>\n                `;\n                dashboard.appendChild(categoryDiv);\n            });\n        }\n        ",
+    "full": "// [graft:structure]\n        function renderDashboard() {\n            const dashboard = document.getElementById('dashboard');\n            dashboard.innerHTML = '';\n            budgetCategories.forEach(category => {\n                const categoryDiv = document.createElement('div');\n                categoryDiv.className = 'category';\n                categoryDiv.innerHTML = `\n                    <h3>${category.name}</h3>\n                    <p>Balance: $${category.balance}</p>\n                    <p>Limit: $${category.limit}</p>\n                    <button onclick=\"editCategory('${category.name}')\">Edit</button>\n                `;\n                dashboard.appendChild(categoryDiv);\n            });\n        }\n        // [/graft:structure]"
+  },
+  "when_add_category": {
+    "content": "\n        document.getElementById('addCategoryBtn').addEventListener('click', () => {\n            const name = prompt('Enter category name:');\n            const limit = parseFloat(prompt('Enter category limit:'));\n            if (name && !isNaN(limit)) {\n                budgetCategories.push({ name, balance: 0, limit });\n                renderDashboard();\n            }\n        });\n        ",
+    "full": "// [graft:when_add_category]\n        document.getElementById('addCategoryBtn').addEventListener('click', () => {\n            const name = prompt('Enter category name:');\n            const limit = parseFloat(prompt('Enter category limit:'));\n            if (name && !isNaN(limit)) {\n                budgetCategories.push({ name, balance: 0, limit });\n                renderDashboard();\n            }\n        });\n        // [/graft:when_add_category]"
+  },
+  "when_update_category_balance": {
+    "content": "\n        function editCategory(name) {\n            const category = budgetCategories.find(c => c.name === name);\n            const newBalance = parseFloat(prompt('Enter new balance:'));\n            if (!isNaN(newBalance)) {\n                category.balance = newBalance;\n                renderDashboard();\n            }\n        }\n        ",
+    "full": "// [graft:when_update_category_balance]\n        function editCategory(name) {\n            const category = budgetCategories.find(c => c.name === name);\n            const newBalance = parseFloat(prompt('Enter new balance:'));\n            if (!isNaN(newBalance)) {\n                category.balance = newBalance;\n                renderDashboard();\n            }\n        }\n        // [/graft:when_update_category_balance]"
+  },
+  "assert_category_limits": {
+    "content": "\n        function checkCategoryLimits() {\n            budgetCategories.forEach(category => {\n                if (category.balance > category.limit) {\n                    alert('Category limit exceeded');\n                }\n            });\n        }\n        ",
+    "full": "// [graft:assert_category_limits]\n        function checkCategoryLimits() {\n            budgetCategories.forEach(category => {\n                if (category.balance > category.limit) {\n                    alert('Category limit exceeded');\n                }\n            });\n        }\n        // [/graft:assert_category_limits]"
+  },
+  "surface_error_messages": {
+    "content": "\n        const errorMessages = {\n            categoryLimitExceeded: 'Category limit exceeded'\n        };\n        ",
+    "full": "// [graft:surface_error_messages]\n        const errorMessages = {\n            categoryLimitExceeded: 'Category limit exceeded'\n        };\n        // [/graft:surface_error_messages]"
+  }
+}

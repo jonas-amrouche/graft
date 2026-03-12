@@ -1,0 +1,43 @@
+PART: Budget Tracker
+NAME: Budget Tracker
+STATUS: draft
+
+DATA: Budget Categories
+MARKER: budget_categories
+INTENT: holds all budget categories and their balances
+TAGS: #list
+---
+The app holds a list of budget categories. Each category has a name, a current balance, and a monthly limit.
+
+STRUCTURE: Dashboard
+MARKER: dashboard
+INTENT: the main screen showing all categories and their balances
+---
+The screen has a header with the app name, a section for each budget category showing its name, balance, and limit, and a summary at the bottom with total income and expenses.
+
+WHEN: Add Category
+MARKER: add_category
+INTENT: user adds a new budget category
+TAGS: #form, #list, #user
+---
+When the user taps the "Add Category" button, a form appears. The user fills in the category name and limit. The new category is added to the list and displayed on the dashboard.
+
+WHEN: Update Category Balance
+MARKER: update_category_balance
+INTENT: user updates the balance of a category
+TAGS: #card, #form, #user
+---
+When the user taps the "Edit" button on a category card, a form appears. The user updates the balance and saves the changes. The updated balance is reflected on the card and the summary.
+
+ASSERT: Category Limits
+MARKER: category_limits
+INTENT: ensure categories do not exceed their limits
+---
+A category's balance cannot exceed its monthly limit. If a category's balance exceeds its limit, a warning is shown.
+
+SURFACE: Category Card
+MARKER: category_card
+INTENT: labels and styles for category cards
+TAGS: #card
+---
+The category card shows the category name, current balance, and limit. The card has a strikethrough style if the balance exceeds the limit.

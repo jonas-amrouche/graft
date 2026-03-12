@@ -1,0 +1,37 @@
+PART: Budget Tracker
+NAME: Budget Tracker
+STATUS: draft
+
+DATA: Budget Categories
+MARKER: budget_categories
+INTENT: holds all budget categories and their balances
+TAGS: #list
+---
+The app holds a list of budget categories. Each category has a name, a current balance, and a monthly limit.
+
+STRUCTURE: Dashboard Screen
+MARKER: dashboard_screen
+INTENT: the main screen showing budget categories and totals
+---
+The screen has a header with the app name, a section for each budget category with its name, balance, and limit, and a summary at the bottom with total income and expenses.
+
+WHEN: Add Category
+MARKER: add_category
+INTENT: user adds a new budget category
+TAGS: #form, #list, #user
+---
+When the user taps the "Add Category" button, a form appears. The user fills in the category name and limit. The new category appears in the list with a zero balance.
+
+ASSERT: Category Limits
+MARKER: category_limits
+INTENT: validation for category limits
+TAGS: #user
+---
+A category limit cannot be negative. A user can only edit their own category limits.
+
+SURFACE: Category Card
+MARKER: category_card
+INTENT: labels and styles for category cards
+TAGS: #card
+---
+The category card displays the category name, current balance, and limit. The balance is shown in green if positive, red if negative, and gray if zero. The limit is shown as a line with a percentage filled.

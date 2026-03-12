@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Budget Tracker</title>
+    <style>
+        // [graft:category_card]
+        .category-card {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .category-name {
+            font-weight: bold;
+        }
+        .category-balance {
+            font-size: 1.2em;
+        }
+        .category-limit {
+            width: 100px;
+            height: 20px;
+            background-color: #eee;
+            position: relative;
+        }
+        .category-limit-fill {
+            height: 100%;
+            background-color: #4caf50;
+        }
+        .category-limit-negative {
+            background-color: #f44336;
+        }
+        .category-limit-zero {
+            background-color: #9e9e9e;
+        }
+        // [/graft:category_card]
+    </style>
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1>Budget Tracker</h1>
+        </header>
+        <section id="budget-categories">
+            <!-- Category cards will be inserted here -->
+        </section>
+        <footer>
+            <div id="summary">
+                <span id="total-income">Total Income: $0</span>
+                <span id="total-expenses">Total Expenses: $0</span>
+            </div>
+        </footer>
+        <button id="add-category-btn">Add Category</button>
+    </div>
+
+    <script>
+        // [graft:data]
+        const budgetCategories = [
+            { name: 'Groceries', balance: 0, limit: 500 },
+            { name: 'Utilities', balance: 0, limit: 200 },
+            { name: 'Entertainment', balance: 0, limit: 100 }
+        ];
+        let totalIncome = 0;
+        let totalExpenses = 0;
+        // [/graft:data]
+
+        // [graft:when_add_category]
+        document.getElementById('add-category-btn').addEventListener('click', () => {
+            const form = document.createElement('form');
+            form.innerHTML = `
+                <input type="text" id="category-name" placeholder="Category Name">
+                <input type="number" id="category-limit" placeholder="Category Limit">
+                <button type="submit">Add</button>
+            `;
+            document.body.appendChild(form);
+
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const name = document.getElementById('category-name').value;
+                const limit = parseFloat(document.getElementById('category-limit').value);
+                if (limit < 0) {
+                    alert('Category limit cannot be negative');
+                    return;
+                }
+                budgetCategories.push({ name, balance: 0, limit });
+                updateUI();
+                form.remove();
+            });
+        });
+        // [/graft:when_add_category]
+
+        // [graft:assert_category_limits]
+        function validateCategoryLimits() {
+            budgetCategories.forEach(category => {
+                if (category.limit < 0) {
+                    alert('Category limit cannot be negative');
+                    category.limit = Math.abs(category.limit);
+                }
+            });
+        }
+        // [/graft:assert_category_limits]
+
+        // [graft:surface_category_card]
+        function renderCategoryCard(category) {
+            const card = document.createElement('div');
+            card.className = 'category-card';
+            card.innerHTML = `
+                <div>
+                    <span class="category-name">${category.name}</span>
+                    <span class="category-balance" style="color: ${category.balance > 0 ? 'green' : category.balance < 0 ? 'red' : 'gray'}">${category.balance}</span>
+                </div>
+                <div class="category-limit">
+                    <div class="category-limit-fill" style="width: ${category.balance / category.limit * 100}%"></div>
+                </div>
+            `;
+            return card;
+        }
+        // [/graft:surface_category_card]
+
+        // [graft:anchor]
+        function updateUI() {
+            const budgetCategoriesSection = document.getElementById('budget-categories');
+            budgetCategoriesSection.innerHTML = '';
+            budgetCategories.forEach(category => {
+                budgetCategoriesSection.appendChild(renderCategoryCard(category));
+            });
+            validateCategoryLimits();
+            totalIncome = budgetCategories.reduce((acc, category) => acc + Math.max(0, category.balance), 0);
+            totalExpenses = budgetCategories.reduce((acc, category) => acc + Math.min(0, category.balance), 0);
+            document.getElementById('total-income').innerText = `Total Income: $${totalIncome}`;
+            document.getElementById('total-expenses').innerText = `Total Expenses: $${totalExpenses}`;
+        }
+        // [/graft:anchor]
+
+        updateUI();
+    </script>
+</body>
+</html>

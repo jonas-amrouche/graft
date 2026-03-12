@@ -1,0 +1,43 @@
+PART: Budget Tracker
+NAME: Budget Tracker
+STATUS: draft
+
+DATA: Budget Categories
+MARKER: budget_categories
+INTENT: holds all budget categories and their balances
+TAGS: #list
+---
+The app holds a list of budget categories. Each category has a name, a current balance, and a monthly limit.
+
+STRUCTURE: Dashboard Screen
+MARKER: dashboard_screen
+INTENT: the main screen showing budget categories and totals
+---
+The screen has a header with the app name, a section for each budget category with its balance and limit, and a summary of total income and expenses at the bottom.
+
+WHEN: Add Category
+MARKER: add_category
+INTENT: user adds a new budget category
+TAGS: #form, #list, #user
+---
+When the user taps the "Add Category" button, a form appears. The user fills in the category name and limit. The new category appears in the list with a zero balance.
+
+WHEN: Update Category Balance
+MARKER: update_category_balance
+INTENT: user updates a category's balance
+TAGS: #card, #form, #time, #user
+---
+When the user taps the "Edit" button on a category card, a form appears. The user updates the balance and confirms. The category's balance updates in real-time on the card.
+
+ASSERT: Category Limits
+MARKER: category_limits
+INTENT: ensure categories do not exceed their limits
+---
+A category's balance cannot exceed its monthly limit. If a category's balance reaches its limit, no further expenses can be added to that category.
+
+SURFACE: Error Messages
+MARKER: error_messages
+INTENT: error messages displayed to the user
+TAGS: #error, #user
+---
+The error messages read "Category limit exceeded" when a user tries to add more to a full category. The add button is labeled "New Category" and the edit button is labeled "Edit Category".

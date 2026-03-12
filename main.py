@@ -124,14 +124,12 @@ class CompileRequest(BaseModel):
     existing_sections: list[MidSection] = []
     parts: list[MidPart] = []
 
-class SurgicalCodeRequest(BaseModel):
-    project_name: str
-    section: MidSection
-    all_sections: list[MidSection]   # for context
-    current_code: str                # full current HTML file
+# SurgicalCodeRequest moved to surgical endpoint section
 
 class CompileCodeRequest(BaseModel):
+    project_name: str = ""
     mid: str
+    sections: list["MidSection"] = []
 
 class SaveProjectRequest(BaseModel):
     project: Project
@@ -376,6 +374,99 @@ def parts_path(project_name: str) -> str:
 def history_path(project_name: str) -> str:
     safe = project_name.replace(" ", "_").lower()
     return os.path.join(PROJECTS_DIR, f"{safe}.history.json")
+def ownership_path(project_name: str) -> str:
+    safe = project_name.replace(" ", "_").lower()
+    return os.path.join(PROJECTS_DIR, f"{safe}.ownership.json")
+
+# ── Marker format: // [graft:marker_name] ... // [/graft:marker_name] ─────────
+MARKER_RE = re.compile(
+    r'(//\s*\[graft:([a-z0-9_]+)\])(.*?)(//\s*\[/graft:\2\])',
+    re.DOTALL
+)
+
+def parse_ownership(code: str) -> dict:
+    """
+    Parse graft ownership regions from generated code.
+    Returns {marker: {content, start, end, keyword_hint}}
+    """
+    ownership = {}
+    for m in MARKER_RE.finditer(code):
+        marker   = m.group(2)
+        content  = m.group(3)  # everything between open and close tags
+        ownership[marker] = {
+            "content":  content,
+            "full":     m.group(0),
+            "start":    m.start(),
+            "end":      m.end(),
+        }
+    return ownership
+
+def enforce_ownership(
+    new_code: str,
+    sections: list["MidSection"],
+    saved_ownership: dict,
+) -> tuple[str, list[str]]:
+    """
+    After code generation, restore any regions that must not change:
+    - ANCHOR sections: always restore verbatim
+    - STRUCTURE sections with lock_status == 'locked': restore verbatim
+    Returns (enforced_code, list_of_violation_markers)
+    """
+    violations = []
+    # Build marker → section map
+    sec_by_marker = {s.code_marker: s for s in sections if s.code_marker}
+
+    result = new_code
+    for marker, saved in saved_ownership.items():
+        sec = sec_by_marker.get(marker)
+        if sec is None:
+            continue
+        should_protect = (
+            sec.keyword == "ANCHOR" or
+            (sec.keyword == "STRUCTURE" and sec.lock_status == "locked")
+        )
+        if not should_protect:
+            continue
+        # Check if new code has this marker at all
+        new_m = re.search(
+            rf'(//\s*\[graft:{re.escape(marker)}\])(.*?)(//\s*\[/graft:{re.escape(marker)}\])',
+            result, re.DOTALL
+        )
+        if new_m:
+            new_content = new_m.group(2)
+            if new_content.strip() != saved["content"].strip():
+                # Restore saved content
+                result = result[:new_m.start(2)] + saved["content"] + result[new_m.end(2):]
+                violations.append(marker)
+        else:
+            # Marker missing — inject before </body> or end
+            inject_point = result.rfind("</body>")
+            if inject_point < 0:
+                inject_point = len(result)
+            inject_block = f"\n{saved['full']}\n"
+            result = result[:inject_point] + inject_block + result[inject_point:]
+            violations.append(marker)
+
+    return result, violations
+
+def save_ownership(project_name: str, ownership: dict):
+    # Strip start/end char offsets (they change each regen), keep content only
+    slim = {k: {"content": v["content"], "full": v["full"]}
+            for k, v in ownership.items()}
+    with open(ownership_path(project_name), "w", encoding="utf-8") as f:
+        json.dump(slim, f, indent=2)
+
+def load_ownership(project_name: str) -> dict:
+    path = ownership_path(project_name)
+    if not os.path.exists(path):
+        return {}
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
 
 def load_mid(project_name: str) -> tuple[list[MidSection], list[MidPart]]:
     path = mid_path(project_name)
@@ -730,23 +821,24 @@ USER PROMPT: {user_prompt}
 
 def build_surgical_code_prompt(section: MidSection, all_sections: list[MidSection],
                                  current_block: str) -> str:
-    # Context: neighbouring sections
     part_secs = sections_for_part(section.part_id, all_sections)
     context = "\n".join(f"  {s.keyword}: {s.name} — {s.intent_tag}"
                         for s in part_secs if s.id != section.id)
+    marker = section.code_marker or f"graft_{section.name.lower().replace(' ','_')}"
     return f"""Replace ONLY the code block below with a new implementation matching the Mid spec.
 Output the block only — no explanation, no markdown fences.
+Keep the opening // [graft:{marker}] and closing // [/graft:{marker}] markers.
 
 CURRENT:
 {current_block}
 
-MID:
+MID SPEC:
 {section.keyword}: {section.name}
 INTENT: {section.intent_tag}
 ---
 {section.body}
 
-CONTEXT (read-only):
+CONTEXT (other sections in same part, read-only):
 {context}
 """
 
@@ -756,12 +848,21 @@ def mid_to_code_prompt(mid: str) -> str:
 Rules:
 - Output ONLY raw HTML. No markdown fences, no explanation. Start with <!DOCTYPE html>.
 - CSS in <style> in <head>. JS in <script> before </body>.
-- ANCHOR: implement invariants exactly as described.
-- STRUCTURE: implement the UI layout described.
-- DATA: use the exact data shapes and names described.
-- WHEN: wrap each behaviour block — // [graft:marker] ... // [/graft:marker]
-- ASSERT: enforce the constraints described.
-- SURFACE: use the exact copy/strings described.
+
+OWNERSHIP MARKERS — wrap EVERY section implementation with:
+  // [graft:marker_name]
+  ... code ...
+  // [/graft:marker_name]
+
+Use the MARKER value from each section as the marker_name. Apply to ALL sections:
+- ANCHOR   → wrap the invariant enforcement code
+- STRUCTURE → wrap the UI layout / HTML structure
+- DATA      → wrap the data model / state initialisation
+- WHEN      → wrap each event handler / behaviour
+- ASSERT    → wrap the validation / constraint enforcement
+- SURFACE   → wrap string constants / copy
+
+Every section must have exactly one marker block. Never nest marker blocks.
 
 {mid}
 """
@@ -1272,20 +1373,51 @@ async def compile_mid(req: CompileRequest, request: Request):
 async def compile_code(req: CompileCodeRequest):
     cfg = load_config()
     prompt = mid_to_code_prompt(req.mid)
-    return StreamingResponse(stream_model(cfg["code_compiler"], prompt),
-        media_type="text/event-stream",
+
+    async def generate_with_ownership():
+        full_parts = []
+        async for chunk in stream_model(cfg["code_compiler"], prompt):
+            yield chunk
+            try:
+                obj = json.loads(chunk[5:].strip())
+                if obj.get("token"):
+                    full_parts.append(obj["token"])
+                if obj.get("done"):
+                    code = (obj.get("full") or "".join(full_parts)).strip()
+                    code = code.replace("```html", "").replace("```", "").strip()
+                    # Parse and save ownership map if project_name provided
+                    ownership_map = {}
+                    violations = []
+                    if req.project_name:
+                        saved_own = load_ownership(req.project_name)
+                        # Enforce protected regions before saving
+                        code, violations = enforce_ownership(code, req.sections, saved_own)
+                        ownership_map = parse_ownership(code)
+                        save_ownership(req.project_name, ownership_map)
+                    yield f"data: {json.dumps({'done': True, 'ownership': {k:1 for k in ownership_map}, 'violations': violations})}\n\n"
+            except Exception:
+                pass
+
+    return StreamingResponse(generate_with_ownership(), media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+class SurgicalCodeRequest(BaseModel):
+    project_name: str
+    section: MidSection
+    all_sections: list[MidSection]
+    current_code: str
+    sections: list[MidSection] = []  # full section list for ownership enforcement
 
 @app.post("/compile/code/surgical")
 async def compile_code_surgical(req: SurgicalCodeRequest):
     """Regenerate only the code block for one Mid section."""
     cfg = load_config()
-    marker = req.section.code_marker or f"graft_{req.section.name}"
+    marker = req.section.code_marker or f"graft_{req.section.name.lower().replace(' ','_')}"
 
-    # Extract current block from code
-    pattern = rf'(//\s*\[{re.escape(marker)}\].*?//\s*\[/{re.escape(marker)}\])'
+    # Extract current block using canonical graft marker format
+    pattern = rf'(//\s*\[graft:{re.escape(marker)}\].*?//\s*\[/graft:{re.escape(marker)}\])'
     m = re.search(pattern, req.current_code, re.DOTALL)
-    current_block = m.group(1) if m else f"// [{marker}]\n// [/{marker}]"
+    current_block = m.group(1) if m else f"// [graft:{marker}]\n// implement {req.section.keyword}: {req.section.name}\n// [/graft:{marker}]"
 
     prompt = build_surgical_code_prompt(req.section, req.all_sections, current_block)
 
@@ -1303,15 +1435,42 @@ async def compile_code_surgical(req: SurgicalCodeRequest):
                     if m:
                         new_code = req.current_code[:m.start()] + new_block + req.current_code[m.end():]
                     else:
-                        # Append before </script>
-                        new_code = req.current_code.replace(
-                            '</script>', f'\n{new_block}\n</script>', 1)
-                    yield f"data: {json.dumps({'done': True, 'code': new_code, 'block': new_block})}\n\n"
+                        inject = req.current_code.rfind("</body>")
+                        if inject < 0: inject = len(req.current_code)
+                        new_code = req.current_code[:inject] + f"\n{new_block}\n" + req.current_code[inject:]
+                    # Enforce ownership: restore any protected regions that changed
+                    saved_own = load_ownership(req.project_name)
+                    new_code, violations = enforce_ownership(new_code, req.all_sections, saved_own)
+                    # Re-parse ownership and save updated map
+                    new_own = parse_ownership(new_code)
+                    merged_own = {**saved_own, **new_own}
+                    save_ownership(req.project_name, merged_own)
+                    yield f"data: {json.dumps({'done': True, 'code': new_code, 'block': new_block, 'violations': violations, 'ownership': {k: 1 for k in merged_own}})}\n\n"
             except Exception:
                 pass
 
     return StreamingResponse(generate(), media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+# ── Routes: ownership ────────────────────────────────────────────────────────
+
+@app.get("/projects/{name}/ownership")
+async def get_ownership(name: str):
+    return {"ownership": load_ownership(name)}
+
+@app.post("/projects/ownership/parse")
+async def parse_ownership_endpoint(req: dict):
+    """Parse ownership from code and save. Called after frontend saves code."""
+    project_name = req.get("project_name", "")
+    code = req.get("code", "")
+    sections_raw = req.get("sections", [])
+    sections = [MidSection(**s) for s in sections_raw]
+    saved_own = load_ownership(project_name)
+    code, violations = enforce_ownership(code, sections, saved_own)
+    ownership = parse_ownership(code)
+    if project_name:
+        save_ownership(project_name, {**saved_own, **ownership})
+    return {"ownership": {k:1 for k in ownership}, "violations": violations}
 
 # ── Routes: parts ─────────────────────────────────────────────────────────────
 

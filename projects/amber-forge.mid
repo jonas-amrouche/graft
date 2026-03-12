@@ -1,0 +1,44 @@
+PART: Recipes
+NAME: Recipes
+STATUS: draft
+
+DATA: Recipe Book
+MARKER: recipe_book
+INTENT: holds all recipes and their details
+TAGS: #time
+---
+The app holds a collection of recipes. Each recipe has a title, ingredients, instructions, cooking time, and a rating.
+
+STRUCTURE: Recipe List Screen
+MARKER: recipe_list_screen
+INTENT: the main screen showing all recipes
+TAGS: #list, #search
+---
+The screen has a header with the app name, a scrollable list of recipe cards, and a search bar at the top.
+
+WHEN: Search Recipe
+MARKER: search_recipe
+INTENT: user searches for a recipe by title
+TAGS: #card, #list, #search, #user
+---
+When the user types in the search bar, the list of recipes filters to show only those with titles containing the search term. The user can tap on a recipe card to view its details.
+
+WHEN: Add Recipe
+MARKER: add_recipe
+INTENT: user adds a new recipe
+TAGS: #form, #list, #time, #user
+---
+When the user taps the add button, a form appears. The user fills in the recipe title, ingredients, instructions, cooking time, and rating. The new recipe appears at the top of the list.
+
+ASSERT: Recipe Title
+MARKER: recipe_title
+INTENT: validation for recipe title
+---
+A recipe title cannot be empty.
+
+SURFACE: Recipe Card
+MARKER: recipe_card
+INTENT: labels and button names for recipe cards
+TAGS: #card
+---
+The recipe card displays the title, a brief description, and a "View Details" button. The empty state reads "No recipes yet — add one above".

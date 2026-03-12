@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recipe Book</title>
+    <style>
+        /* [graft:recipe_book] */
+        .recipe-card {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        .recipe-title {
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+        .recipe-rating {
+            font-size: 14px;
+            color: #f00;
+        }
+        .read-more {
+            background-color: #007bff;
+            color: white;
+            padding: 5px 10px;
+            text-decoration: none;
+        }
+        /* [/graft:recipe_book] */
+    </style>
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1>Recipe Book</h1>
+            <input type="text" id="search-bar" placeholder="Search recipes...">
+        </header>
+        <div id="recipe-list"></div>
+    </div>
+
+    <script>
+        // [graft:recipe_list_screen]
+        const recipes = [
+            { title: "Spaghetti Carbonara", rating: 4, ingredients: ["spaghetti", "eggs", "bacon"], instructions: "Boil water, cook pasta, fry bacon, mix eggs and cheese, toss with pasta." },
+            { title: "Caesar Salad", rating: 5, ingredients: ["romaine lettuce", "croutons", "parmesan"], instructions: "Toss lettuce with croutons and parmesan, drizzle with Caesar dressing." }
+        ];
+
+        const recipeList = document.getElementById('recipe-list');
+        const searchBar = document.getElementById('search-bar');
+
+        function renderRecipes(recipes) {
+            recipeList.innerHTML = '';
+            recipes.forEach(recipe => {
+                const card = document.createElement('div');
+                card.className = 'recipe-card';
+                card.innerHTML = `
+                    <div class="recipe-title">${recipe.title}</div>
+                    <div class="recipe-rating">${recipe.rating} stars</div>
+                    <a href="#" class="read-more">Read More</a>
+                `;
+                recipeList.appendChild(card);
+            });
+        }
+
+        searchBar.addEventListener('input', () => {
+            const searchTerm = searchBar.value.toLowerCase();
+            const filteredRecipes = recipes.filter(recipe => recipe.title.toLowerCase().includes(searchTerm));
+            renderRecipes(filteredRecipes);
+        });
+
+        renderRecipes(recipes);
+        // [/graft:recipe_list_screen]
+    </script>
+</body>
+</html>

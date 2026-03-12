@@ -247,22 +247,20 @@ body { background:var(--bg); color:var(--text); font-family:var(--font-ui); font
 .doc-part-verify:hover { border-color:rgba(255,255,255,.4); color:rgba(255,255,255,.7); }
 .doc-part-verify.is-verified { border-color:rgba(94,203,126,.5); color:rgba(94,203,126,.8); }
 
-/* ── Section grid inside part ── */
+/* ── Section list inside part ── */
 .doc-sections {
-  display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
-  gap:1px;
-  background:rgba(255,255,255,.04);
-  border:1px solid rgba(255,255,255,.05);
-  border-radius:5px;
-  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  gap:2px;
 }
 .doc-section {
   background:var(--surface);
-  padding:14px 14px 18px;
+  padding:14px 16px 16px;
   cursor:pointer;
   transition:background .1s;
   position:relative;
+  border-radius:4px;
+  border:1px solid rgba(255,255,255,.05);
 }
 
 .doc-section:hover { background:var(--surface2); }
@@ -306,6 +304,26 @@ body { background:var(--bg); color:var(--text); font-family:var(--font-ui); font
 .doc-body {
   font-size:12px; line-height:1.8; color:rgba(210,210,210,.58);
 }
+/* Inline syntax tokens — minimal, high signal only */
+.tok-string     { color:rgba(130,210,110,.9); }
+.tok-snake      { color:rgba(170,175,210,.6); font-family:var(--font-mono); font-size:10.5px; }
+.tok-caps       { color:rgba(224,154,80,.8);  font-family:var(--font-mono); font-size:10px; letter-spacing:.1em; }
+.tok-number     { color:rgba(130,180,230,.75);font-family:var(--font-mono); font-size:11px; }
+.tok-constraint { color:rgba(224,130,80,.95); font-weight:700; }
+.tok-nounphrase { text-decoration:underline; text-decoration-color:rgba(210,210,210,.25); text-underline-offset:3px; text-decoration-thickness:1px; }
+.doc-body-ref {
+  display:inline; font-size:11px; font-family:var(--font-mono);
+  padding:1px 5px; border-radius:2px; cursor:pointer;
+  border:1px solid; transition:all .1s; white-space:nowrap;
+  vertical-align:baseline; margin:0 1px;
+}
+.doc-body-ref:hover { filter:brightness(1.4); }
+.doc-body-ref-DATA     { color:var(--c-data);      background:rgba(94,203,126,.08);   border-color:rgba(94,203,126,.2); }
+.doc-body-ref-STRUCTURE{ color:var(--c-structure);  background:rgba(80,160,220,.08);   border-color:rgba(80,160,220,.2); }
+.doc-body-ref-WHEN     { color:var(--c-when);       background:rgba(224,112,128,.08);  border-color:rgba(224,112,128,.2); }
+.doc-body-ref-ASSERT   { color:var(--c-assert);     background:rgba(224,154,80,.08);   border-color:rgba(224,154,80,.2); }
+.doc-body-ref-SURFACE  { color:var(--c-surface);    background:rgba(176,144,220,.08);  border-color:rgba(176,144,220,.2); }
+.doc-body-ref-ANCHOR   { color:var(--c-anchor);     background:rgba(160,200,240,.08);  border-color:rgba(160,200,240,.2); }
 
 /* Inline section prompt */
 .doc-inline-prompt {
@@ -354,6 +372,29 @@ body { background:var(--bg); color:var(--text); font-family:var(--font-ui); font
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
 }
 .doc-draft-ghost::before { content:'✎ '; opacity:.5; }
+/* Code coverage + surgical recompile */
+.doc-sec-code-row {
+  display:flex; align-items:center; gap:6px;
+  margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,.05);
+}
+.doc-sec-code-dot {
+  width:5px; height:5px; border-radius:50%; flex-shrink:0;
+}
+.doc-sec-code-dot.covered   { background:rgba(94,203,126,.6); }
+.doc-sec-code-dot.uncovered { background:rgba(255,255,255,.15); }
+.doc-sec-code-dot.protected { background:rgba(160,200,240,.7); }
+.doc-sec-code-label {
+  font-family:var(--font-mono); font-size:9px; color:var(--text-4);
+  flex:1; letter-spacing:.06em;
+}
+.doc-sec-regen-btn {
+  font-family:var(--font-mono); font-size:9px; padding:2px 8px;
+  border-radius:2px; border:1px solid rgba(255,255,255,.1);
+  background:transparent; color:var(--text-3); cursor:pointer;
+  transition:all .12s; flex-shrink:0;
+}
+.doc-sec-regen-btn:hover { border-color:rgba(176,144,220,.5); color:var(--c-surface); background:rgba(176,144,220,.08); }
+.doc-sec-regen-btn:disabled { opacity:.3; cursor:default; }
 
 /* Tags */
 .doc-sec-tags {
@@ -369,9 +410,10 @@ body { background:var(--bg); color:var(--text); font-family:var(--font-ui); font
 
 /* hint bar */
 .doc-hint {
-  position:fixed; bottom:16px; left:50%; transform:translateX(-50%);
   font-family:var(--font-mono); font-size:9px; color:var(--text-4);
-  letter-spacing:.08em; pointer-events:none; z-index:5;
+  letter-spacing:.08em; pointer-events:none;
+  position:absolute; left:50%; transform:translateX(-50%);
+  white-space:nowrap;
 }
 
 /* keep kw-label for legacy compat */
@@ -583,35 +625,48 @@ body { background:var(--bg); color:var(--text); font-family:var(--font-ui); font
   white-space:pre; overflow:visible;
 }
 /* Graft ownership regions */
+/* Graft region: rendered as wrapper divs around groups of <span class="code-line"> */
 .graft-region {
   display:block;
-  position:relative;
-  border-left:2px solid;
-  padding-left:6px;
-  margin-left:-8px;
+  border-left:2px solid transparent;
+  margin:2px 0;
 }
 .graft-region-label {
   display:inline-flex; align-items:center; gap:5px;
-  font-size:9px; font-weight:700; letter-spacing:.12em;
-  text-transform:uppercase; opacity:.6;
-  padding:2px 0 3px 0;
+  font-size:9px; font-weight:600; letter-spacing:.1em;
+  text-transform:uppercase; opacity:.55;
+  padding:1px 6px 1px 0;
   font-family:var(--font-mono);
   user-select:none; cursor:pointer;
   transition:opacity .12s;
   text-decoration:none;
+  /* own line — does NOT affect code indentation */
+  display:block; width:100%;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
 .graft-region-label:hover { opacity:1; }
-.graft-region-label::before { content:"↗"; font-size:8px; opacity:.7; }
-.graft-STATE   { border-color:var(--c-state);     background:rgba(94,203,126,.05); }
-.graft-TYPE    { border-color:var(--c-type);       background:rgba(180,120,220,.05); }
-.graft-STRUCTURE{ border-color:var(--c-structure); background:rgba(80,160,220,.05); }
-.graft-WHEN    { border-color:var(--c-when);       background:rgba(220,112,128,.06); }
-.graft-STATE    .graft-region-label { color:var(--c-state); }
-.graft-TYPE     .graft-region-label { color:var(--c-type); }
+.graft-region-label::before { content:"↗ "; font-size:8px; }
+/* Per-keyword colors */
+.graft-DATA      { border-color:var(--c-data);      background:rgba(94,203,126,.04); }
+.graft-STRUCTURE { border-color:var(--c-structure); background:rgba(80,160,220,.04); }
+.graft-WHEN      { border-color:var(--c-when);      background:rgba(220,112,128,.05); }
+.graft-ASSERT    { border-color:var(--c-assert);    background:rgba(224,154,80,.04); }
+.graft-SURFACE   { border-color:#d4b8ff;            background:rgba(212,184,255,.03); }
+.graft-ANCHOR    { border-color:var(--c-anchor);    background:rgba(160,200,240,.04); }
+.graft-STATE     { border-color:var(--c-data);      background:rgba(94,203,126,.04); }
+.graft-TYPE      { border-color:var(--c-data);      background:rgba(94,203,126,.04); }
+.graft-DATA      .graft-region-label { color:var(--c-data); }
 .graft-STRUCTURE .graft-region-label { color:var(--c-structure); }
-.graft-WHEN     .graft-region-label { color:var(--c-when); }
+.graft-WHEN      .graft-region-label { color:var(--c-when); }
+.graft-ASSERT    .graft-region-label { color:var(--c-assert); }
+.graft-SURFACE   .graft-region-label { color:#d4b8ff; }
+.graft-ANCHOR    .graft-region-label { color:var(--c-anchor); }
+.graft-STATE     .graft-region-label { color:var(--c-data); }
+.graft-TYPE      .graft-region-label { color:var(--c-data); }
 /* Override prism tomorrow background */
 code[class*="language-"], pre[class*="language-"] { background:transparent !important; }
+/* code-highlight is a block element; graft-region divs stack naturally inside it */
+#code-highlight { display:block; white-space:pre; }
 .preview-frame { flex:1; border:none; background:#fff; }
 
 /* ── RIGHT: Intent Tree ── */
@@ -685,7 +740,7 @@ code[class*="language-"], pre[class*="language-"] { background:transparent !impo
 .conflict-score { font-family:var(--font-mono); font-size:9px; color:var(--c-warn); flex-shrink:0; }
 
 /* ── Statusbar ── */
-.statusbar { height:24px; background:var(--surface); border-top:1px solid var(--border); display:flex; align-items:center; padding:0 13px; gap:14px; flex-shrink:0; }
+.statusbar { height:24px; background:var(--surface); border-top:1px solid var(--border); display:flex; align-items:center; padding:0 13px; gap:14px; flex-shrink:0; position:relative; }
 .model-pill { font-family:var(--font-mono); font-size:9px; letter-spacing:.08em; padding:2px 8px; border-radius:10px; border:1px solid var(--border); color:var(--text-3); cursor:pointer; background:none; transition:border-color .12s, color .12s; user-select:none; }
 .model-pill:hover { border-color:var(--text-3); color:var(--text-2); }
 .model-pill.is-cloud { border-color:rgba(94,203,126,.5); color:var(--c-state); }
@@ -939,7 +994,6 @@ code[class*="language-"], pre[class*="language-"] { background:transparent !impo
           <div id="history-list" style="flex:1;overflow-y:auto;padding:0 0 8px"></div>
         </div>
 
-        <div class="doc-hint" id="doc-hint">/ prompt  ·  click section to target  ·  esc to dismiss</div>
       </div>
     </div>
 
@@ -969,6 +1023,7 @@ code[class*="language-"], pre[class*="language-"] { background:transparent !impo
     <span id="stat-text">Ready</span>
   </div>
   <div class="stat" id="stat-tokens" style="display:none"><span id="stat-token-count"></span></div>
+  <div class="doc-hint" id="doc-hint">/ prompt  ·  click section to target  ·  esc to dismiss</div>
   <div class="stat stat-right" style="display:flex;align-items:center;gap:10px">
     <button class="model-pill" id="model-pill" onclick="toggleModelOverride()" title="Toggle model source (session only)">local</button>
     <span id="stat-nodes"></span>
@@ -1522,7 +1577,7 @@ async function compileCode() {
   try {
     const resp = await fetch('/compile/code', {
       method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ mid: midText })
+      body: JSON.stringify({ project_name: project.name, mid: midText, sections })
     });
     if (!resp.ok) { setGenerating(false); setStatus('Code gen failed', 'error'); return; }
 
@@ -1548,12 +1603,16 @@ async function compileCode() {
             streamEl.scrollTop = streamEl.scrollHeight;
           }
           if (obj.done) {
-            const code = (obj.full || full.join('')).trim();
+            const rawCode = obj.full || full.join('');
+            if (!rawCode.trim() && lastClean) {
+              setCodeDisplay(lastClean);
+            } else {
+            const code = rawCode.trim();
             const clean = code.replace(/^```html\s*/i,'').replace(/```\s*$/,'').trim();
+            lastClean = clean;
             const fname = (project.name.replace(/ /g,'_').toLowerCase()) + '.html';
             codeFiles[fname] = clean;
             activeCodeFile = fname;
-
             await fetch('/projects/code', {
               method:'POST', headers:{'Content-Type':'application/json'},
               body: JSON.stringify({project_name:project.name, filename:fname, content:clean})
@@ -1573,6 +1632,7 @@ async function compileCode() {
             renderFileTree();
             setGenerating(false); updateButtons();
             setStatus('Code generated');
+            } // end else rawCode
           }
           if (obj.error) throw new Error(obj.error);
         } catch(e) { if (e.message) throw e; }
@@ -1601,6 +1661,7 @@ async function surgicalRecompile(sectionId) {
         project_name: project.name,
         section,
         all_sections: sections,
+        sections,
         current_code: codeFiles[activeCodeFile]
       })
     });
@@ -1621,11 +1682,11 @@ async function surgicalRecompile(sectionId) {
             codeFiles[activeCodeFile] = obj.code;
             document.getElementById('code-out').value = obj.code; setCodeDisplay(obj.code);
             document.getElementById('preview').srcdoc = obj.code;
+            setStatus('Section recompiled: ' + (section.code_marker || section.name));
             await fetch('/projects/code', {
               method:'POST', headers:{'Content-Type':'application/json'},
               body: JSON.stringify({project_name:project.name, filename:activeCodeFile, content:obj.code})
             });
-            setStatus('Section recompiled');
           }
         } catch(e) {}
       }
@@ -1865,6 +1926,200 @@ function drawHalos() { /* removed */ }
 
 // Keyword sort order within a part
 
+// ── Body text enrichment ──────────────────────────────────────────────────
+// Scans body text for mentions of other section names, wraps them in
+// clickable colored chips. Only matches actual section names in current doc.
+function renderBodyWithRefs(body, currentSectionId) {
+  if (!body || !sections.length) return document.createTextNode(body || '');
+
+  // Build lookup: normalized name → section (exclude self)
+  const refMap = [];
+  sections.forEach(sec => {
+    if (sec.id === currentSectionId) return;
+    // Match both the raw name (snake_case) and a humanized version
+    const raw = sec.name.toLowerCase().replace(/_/g, ' ');
+    refMap.push({ pattern: raw, sec });
+    if (raw !== sec.name.toLowerCase()) {
+      refMap.push({ pattern: sec.name.toLowerCase(), sec });
+    }
+  });
+  // Sort longest first so "user profile" matches before "user"
+  refMap.sort((a, b) => b.pattern.length - a.pattern.length);
+
+  if (!refMap.length) return document.createTextNode(body);
+
+  const frag = document.createDocumentFragment();
+  const lower = body.toLowerCase();
+  // Use manual scan to avoid regex lastIndex issues
+  const parts2 = [];
+  let pos = 0;
+  while (pos < body.length) {
+    let earliest = -1, earliestLen = 0, earliestSec = null, earliestMatchLen = 0;
+    for (const { pattern, sec } of refMap) {
+      const idx = lower.indexOf(pattern, pos);
+      if (idx < 0) continue;
+      // Word boundary before
+      const before = idx === 0 || /[^a-z0-9_]/i.test(body[idx-1]);
+      if (!before) continue;
+      // After pattern: allow optional trailing 's' or 'es' for plurals, then non-word
+      let endIdx = idx + pattern.length;
+      if (lower[endIdx] === 's') {
+        const afterS = endIdx + 1;
+        if (afterS >= body.length || /[^a-z0-9_]/i.test(body[afterS])) endIdx = afterS;
+      }
+      const after = endIdx >= body.length || /[^a-z0-9_]/i.test(body[endIdx]);
+      if (!after) continue;
+      if (earliest < 0 || idx < earliest || (idx === earliest && pattern.length > earliestLen)) {
+        earliest = idx; earliestLen = pattern.length; earliestMatchLen = endIdx - idx; earliestSec = sec;
+      }
+    }
+    if (earliest < 0) { parts2.push({ text: body.slice(pos) }); break; }
+    if (earliest > pos) parts2.push({ text: body.slice(pos, earliest) });
+    // Use the actual matched text (may include trailing 's')
+    parts2.push({ ref: body.slice(earliest, earliest + earliestMatchLen), sec: earliestSec });
+    pos = earliest + earliestMatchLen;
+  }
+
+    // ── Token types for plain text segments ──────────────────────────────────
+  const CONSTRAINT = new Set([
+    'must','never','always','only','requires','require','forbidden',
+    'ensures','ensure','cannot','should','shall','mandatory','critical',
+    'strictly','exactly','guaranteed','prevents','prevent','disallowed',
+    'enforced','restricted','required','not','reject','rejected','notified'
+  ]);
+  const NP_SKIP = new Set(['lot','way','time','same','end','top','use','bit','few',
+    'part','set','fact','case','kind','sort','type','ones','right','bottom','left',
+    'appears','opens','hides','loads','becomes','confirms','submits','taps','drags',
+    'clicks','updates','changes','moves','adds','removes','enters','edits','based',
+    'relative','each','every','those','which','only','filters','shows','highlights',
+    'saves','adjusts','repositions','reflects']);
+  const NP_TRIM = new Set(['in','on','of','at','to','the','a','an','with','for','and','or','its','by','from']);
+
+  function findNounPhrases(text) {
+    const results = [];
+    const seenKey = new Set();
+
+    function addRange(s, e) {
+      const k = s+':'+e;
+      if (!seenKey.has(k)) { seenKey.add(k); results.push([s,e]); }
+    }
+
+    // Core: article-led NPs in list context
+    const npRe = /(?<![A-Za-z])((?:a|an|the|its?|their)\s+(?:[a-z]+\s+){0,3}[a-z]+)(?![a-z])/gi;
+    let m;
+    while ((m = npRe.exec(text)) !== null) {
+      const pos = m.index;
+      // Reject sentence-start caps
+      const atSent = pos === 0 || /[.!?]\s*$/.test(text.slice(0, pos));
+      if (atSent && /^[A-Z]/.test(m[1])) continue;
+      // Trim trailing function words
+      const words = m[1].trim().split(' ');
+      while (words.length && NP_TRIM.has(words[words.length-1].toLowerCase())) words.pop();
+      if (words.length < 2) continue;
+      const ph = words.join(' ');
+      const last = words[words.length-1].toLowerCase();
+      if (NP_SKIP.has(last)) continue;
+      // Find trimmed phrase and check list context
+      const phStart = text.toLowerCase().indexOf(ph.toLowerCase(), pos);
+      if (phStart < 0) continue;
+      const phEnd = phStart + ph.length;
+      const before = text.slice(0, phStart).trimEnd();
+      const after  = text.slice(phEnd).trimStart();
+      const befOk = /[,;]$|\b(?:has|have|with|and|or|including|showing|containing|for|in|on)\s*$/.test(before);
+      const aftOk = /^[,;.]|^\s+(?:and|or)\b/.test(after);
+      if (befOk || aftOk) addRange(phStart, phEnd);
+    }
+
+    // Bare noun sub-lists after "showing/containing its X, Y, and Z"
+    const bareRe = /\b(?:showing|containing|including)\s+(?:its?\s+)?/gi;
+    while ((m = bareRe.exec(text)) !== null) {
+      const rest = text.slice(m.index + m[0].length);
+      const clause = rest.split(/,\s*and\s+(?:a|an|the)\b/i)[0].split(/[.!?]/)[0];
+      let pos2 = m.index + m[0].length;
+      clause.split(/,\s*(?:and\s+)?|\s+and\s+/).forEach(item => {
+        const it = item.trim().replace(/[.,;]+$/, '');
+        if (!it) { pos2 += item.length+2; return; }
+        const ws = it.split(' ');
+        const last2 = ws[ws.length-1].toLowerCase();
+        if (ws.length >= 1 && ws.length <= 3 && !NP_SKIP.has(last2) && last2.length > 2) {
+          const idx2 = text.toLowerCase().indexOf(it.toLowerCase(), Math.max(0, pos2-2));
+          if (idx2 >= 0) addRange(idx2, idx2+it.length);
+        }
+        pos2 += item.length+2;
+      });
+    }
+
+    // Display verbs → bare item list
+    const p1Re = /\b(?:displays?|renders?|tracks?|stores?|provides?)\s+/gi;
+    while ((m = p1Re.exec(text)) !== null) {
+      const clause = text.slice(m.index+m[0].length).split(/[.!?]|\b(?:when|if|but|because)\b/i)[0];
+      clause.split(/,\s*(?:and\s+)?|\s+and\s+|\s+or\s+/).forEach(item => {
+        let it = item.trim().replace(/[.,;]+$/, '').replace(/^(?:and|or)\s+/i, '');
+        if (!it) return;
+        const ws = it.split(' ');
+        const last2 = ws[ws.length-1].toLowerCase();
+        if (ws.length >= 2 && ws.length <= 5 && !NP_SKIP.has(last2)) {
+          const idx2 = text.toLowerCase().indexOf(it.toLowerCase(), m.index);
+          if (idx2 >= 0) addRange(idx2, idx2+it.length);
+        }
+      });
+    }
+
+    return results.sort((a,b) => a[0]-b[0]);
+  }
+
+  const TOKEN_RE = /(?<![a-zA-Z0-9])(["'])(?:(?!\1)[^\\]|\\.)*\1(?![a-zA-Z])|([a-zA-Z][a-zA-Z0-9]*_[a-zA-Z0-9_]+)|([A-Z]{3,})\b|(\d+(?:\.\d+)?(?:ms|s|px|rem|em|%|kb|mb|gb|x)?)\b|([a-z]{3,})/g;
+
+  function tokenizeText(text) {
+    const npRanges = findNounPhrases(text);
+    const nodes = [];
+    let last = 0;
+    TOKEN_RE.lastIndex = 0;
+    let m;
+    while ((m = TOKEN_RE.exec(text)) !== null) {
+      if (m.index > last) nodes.push(document.createTextNode(text.slice(last, m.index)));
+      const raw = m[0];
+      const mS = m.index, mE = m.index + raw.length;
+      let cls = null;
+      if      (m[1]) cls = 'tok-string';
+      else if (m[2]) cls = 'tok-snake';
+      else if (m[3]) cls = 'tok-caps';
+      else if (m[4]) cls = 'tok-number';
+      else if (m[5] && CONSTRAINT.has(raw)) cls = 'tok-constraint';
+      if (!cls && npRanges.some(r => mS >= r[0] && mE <= r[1])) cls = 'tok-nounphrase';
+      if (cls) {
+        const span = document.createElement('span');
+        span.className = cls; span.textContent = raw;
+        nodes.push(span);
+      } else {
+        nodes.push(document.createTextNode(raw));
+      }
+      last = m.index + m[0].length;
+    }
+    if (last < text.length) nodes.push(document.createTextNode(text.slice(last)));
+    return nodes;
+  }
+
+  parts2.forEach(p => {
+    if (p.text !== undefined) {
+      tokenizeText(p.text).forEach(n => frag.appendChild(n));
+    } else {
+      const chip = document.createElement('span');
+      chip.className = 'doc-body-ref doc-body-ref-' + p.sec.keyword;
+      chip.textContent = p.ref;
+      chip.title = p.sec.keyword + ': ' + p.sec.name;
+      chip.onclick = e => {
+        e.stopPropagation();
+        const el = document.getElementById('sec-' + p.sec.id);
+        if (el) el.scrollIntoView({ behavior:'smooth', block:'center' });
+        clickSection(p.sec.id, p.sec.part_id, false);
+      };
+      frag.appendChild(chip);
+    }
+  });
+  return frag;
+}
+
 function buildSection(s, partId) {
   const isTargeted = targetSectionIds.includes(s.id);
   const isSole     = isTargeted && targetSectionIds.length === 1;
@@ -1919,7 +2174,7 @@ function buildSection(s, partId) {
 
   const bodyEl = document.createElement('div');
   bodyEl.className = 'doc-body';
-  bodyEl.textContent = s.body;
+  bodyEl.appendChild(renderBodyWithRefs(s.body, s.id));
   el.appendChild(bodyEl);
 
 
@@ -2527,76 +2782,147 @@ function onCodeEdit() {
   if (preview) preview.srcdoc = el.value;
 }
 
+function formatGraftLabel(sec, marker) {
+  // "WHEN : Add Category"  from keyword + name
+  if (!sec) return marker;
+  // sec.name is human-readable from Mid ("Add Category", "Category Card", etc.)
+  const name = sec.name; // already title-cased from Mid
+  return sec.keyword + ' : ' + name;
+}
+
+// Match both JS-style // [graft:x] and HTML-style <!-- [graft:x] -->
+const GRAFT_OPEN  = /(?:\/\/|<!--)\s*\[graft:([^\]]+)\]\s*(?:-->)?/;
+const GRAFT_CLOSE = /(?:\/\/|<!--)\s*\[\/graft:([^\]]+)\]\s*(?:-->)?/;
+
 function setCodeDisplay(text) {
   const display = document.getElementById('code-highlight');
   if (!display) return;
   if (!text) { display.innerHTML = ''; return; }
 
-  // ── 1. Parse [graft:marker] regions in the raw text ──────────────────
-  const lines = text.split('\n');
-  // Map: lineIndex → { open: sectionId } or { close: sectionId }
-  const regionStarts = {}, regionEnds = {};
+  // ── 1. Build marker → section map ───────────────────────────────────
+  // Index by code_marker (with/without graft_ prefix) AND by keyword (DATA,
+  // WHEN, STRUCTURE, etc.) for when the AI uses generic marker names like
+  // [graft:data] or [graft:when_add_task] that don't match the Mid code_marker.
   const markerToSection = {};
-  sections.forEach(s => { if (s.code_marker) markerToSection[s.code_marker] = s; });
+  // keyword → last section with that keyword (fallback for generic markers)
+  const kwFallback = {};
+  // keyword_snake → section (e.g. 'when_add_task' → WHEN: Add Task section)
+  const nameIndex = {};
 
-  let activeMarker = null;
-  lines.forEach((line, i) => {
-    const mOpen  = line.match(/\/\/\s*\[graft:([^\]]+)\]/);
-    const mClose = line.match(/\/\/\s*\[\/graft:([^\]]+)\]/);
-    if (mOpen)  { regionStarts[i] = mOpen[1];  activeMarker = mOpen[1]; }
-    if (mClose) { regionEnds[i]   = mClose[1]; activeMarker = null; }
+  sections.forEach(s => {
+    if (s.code_marker) {
+      const bare = s.code_marker.replace(/^graft_/, '');
+      markerToSection[bare] = s;
+      markerToSection['graft_' + bare] = s;
+      markerToSection[s.code_marker] = s;
+    }
+    // keyword fallback: 'data', 'structure', 'when', 'assert', 'surface', 'anchor'
+    kwFallback[s.keyword.toLowerCase()] = s;
+    // name-based: snake_case of section name, with/without keyword prefix
+    const snakeName = s.name.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+    const kwSnake   = s.keyword.toLowerCase() + '_' + snakeName;
+    nameIndex[snakeName] = s;
+    nameIndex[kwSnake]   = s;
   });
 
-  // ── 2. Prism-highlight the full text ─────────────────────────────────
+  function resolveMarker(marker) {
+    // 1. Exact match on code_marker (with/without graft_ prefix)
+    if (markerToSection[marker]) return markerToSection[marker];
+    const bare = marker.replace(/^graft_/, '');
+    if (markerToSection[bare]) return markerToSection[bare];
+    // 2. Name-based: 'when_add_task' → WHEN section named 'Add Task'
+    if (nameIndex[bare]) return nameIndex[bare];
+    // 3. Substring scan: find section whose snake name is contained in marker
+    //    e.g. marker='surface_task_screen' → section name 'Task Screen'
+    const found = sections.find(s => {
+      const sn = s.name.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+      return bare.includes(sn) || sn.includes(bare);
+    });
+    if (found) return found;
+    // 4. Keyword-only fallback ONLY when marker is exactly a keyword name
+    //    AND that keyword appears exactly once in sections.
+    //    Prevents 'anchor' matching an ANCHOR section when the AI used it generically.
+    const KEYWORDS = ['data','structure','when','assert','surface','anchor'];
+    if (KEYWORDS.includes(bare)) {
+      const matches = sections.filter(s => s.keyword.toLowerCase() === bare);
+      if (matches.length === 1) return matches[0]; // only match if unambiguous
+    }
+    return null;
+  }
+
+  // ── 2. Parse graft regions from raw text BEFORE highlighting ─────────
+  // Record: for each line index, is it a graft open/close marker?
+  // Matches both // [graft:x] and <!-- [graft:x] --> style
+  const OPEN_RE  = /^[ \t]*(?:\/\/|<!--)\s*\[graft:([^\]]+)\]\s*(?:-->)?\s*$/;
+  const CLOSE_RE = /^[ \t]*(?:\/\/|<!--)\s*\[\/graft:([^\]]+)\]\s*(?:-->)?\s*$/;
+
+  const rawLines = text.split('\n');
+  // lineInfo[i] = null | {type:'open'|'close', marker}
+  const lineInfo = rawLines.map(line => {
+    const mO = line.match(OPEN_RE);
+    if (mO) return { type: 'open',  marker: mO[1] };
+    const mC = line.match(CLOSE_RE);
+    if (mC) return { type: 'close', marker: mC[1] };
+    return null;
+  });
+
+  // ── 3. Highlight the raw text unchanged ──────────────────────────────
   let highlighted;
   try {
-    const lang = window.Prism?.languages?.html || window.Prism?.languages?.markup;
-    highlighted = lang
-      ? window.Prism.highlight(text, lang, 'html')
-      : escHtml(text);
+    const lang = window.Prism?.languages?.html;
+    highlighted = lang ? window.Prism.highlight(text, lang, 'html') : escHtml(text);
   } catch(e) { highlighted = escHtml(text); }
 
-  // ── 3. Split highlighted by \n, wrap graft regions ───────────────────
-  const hLines = highlighted.split('\n');
+  // ── 4. Re-align: count newlines in highlighted output to find line N ──
+  // Prism preserves all newlines — the nth '\n' in highlighted corresponds
+  // to the nth '\n' in source. Collect start positions of each line in
+  // the highlighted string.
+  const hLineStarts = [0];
+  for (let k = 0; k < highlighted.length; k++) {
+    if (highlighted[k] === '\n') hLineStarts.push(k + 1);
+  }
+  // hLineStarts[i] = index in `highlighted` where line i begins
+  // Line i ends at hLineStarts[i+1]-1 (or end of string)
+
+  // ── 5. Build output: slice highlighted, inject region wrappers ────────
   const out = [];
-  let inRegion = null; // current marker string
+  let inRegion = false;
+  let hPos = 0; // current position in highlighted string
 
-  hLines.forEach((hLine, i) => {
-    // Open region — emit label, skip the raw marker comment line
-    if (regionStarts[i] !== undefined) {
-      const marker = regionStarts[i];
-      const sec = markerToSection[marker];
-      const kw  = sec?.keyword || 'WHEN';
-      const sId = sec ? sec.id : '';
-      const linkLabel = sec ? (sec.keyword + ' · ' + sec.name) : marker;
-      inRegion = marker;
-      // data-sid for event delegation — no inline onclick needed
-      out.push(
-        '<span class="graft-region graft-' + kw + '">' +
-        '<a class="graft-region-label" data-sid="' + escHtml(sId) + '" href="#">' +
-        escHtml(linkLabel) + '</a>'
-      );
-      return; // skip pushing the raw [graft:marker] comment line
+  for (let li = 0; li < rawLines.length; li++) {
+    const info = lineInfo[li];
+    const lineStart = hLineStarts[li] ?? highlighted.length;
+    const lineEnd   = hLineStarts[li + 1] ?? highlighted.length; // includes trailing \n
+
+    if (info) {
+      // This is a marker line — don't emit it, just open/close region div
+      if (info.type === 'open') {
+        if (inRegion) out.push('</div>');
+        const sec = resolveMarker(info.marker);
+        // Derive keyword from marker name when section not found
+        // e.g. [graft:anchor] → 'ANCHOR', [graft:when_add_task] → 'WHEN'
+        const KWMAP = {data:'DATA',structure:'STRUCTURE',when:'WHEN',
+                       assert:'ASSERT',surface:'SURFACE',anchor:'ANCHOR'};
+        const markerKwHint = KWMAP[info.marker.replace(/^graft_/,'').split('_')[0]] || null;
+        const kw  = sec?.keyword || markerKwHint || 'DATA';
+        const sId = sec ? sec.id : '';
+        const label = formatGraftLabel(sec, info.marker);
+        out.push('<div class="graft-region graft-' + kw + '">');
+        out.push('<a class="graft-region-label" data-sid="' + escHtml(sId) +
+                 '" href="javascript:void(0)">' + escHtml(label) + '</a>');
+        inRegion = true;
+      } else if (info.type === 'close') {
+        if (inRegion) { out.push('</div>'); inRegion = false; }
+      }
+      // skip the highlighted version of this line entirely
+    } else {
+      // Emit the highlighted version of this line
+      out.push(highlighted.slice(lineStart, lineEnd));
     }
-
-    // Close region — close span, skip the raw [/graft:marker] comment line
-    if (regionEnds[i] !== undefined) {
-      out.push('</span>');
-      inRegion = null;
-      return; // skip pushing the raw [/graft:marker] comment line
-    }
-
-    out.push(hLine);
-    if (i < hLines.length - 1) out.push('\n');
-  });
-
-  // Close any unclosed region
-  if (inRegion) out.push('</span>');
+  }
+  if (inRegion) out.push('</div>');
 
   display.innerHTML = out.join('');
-
-  // ── 4. Re-run Prism on the element so nested spans still parse ────────
-  // (Prism.highlightElement would re-process but we already did it — skip)
 }
 
 function escHtml(s) {
@@ -2615,11 +2941,11 @@ function graftLabelClick(e, sectionId) {
   setTarget(s.part_id, [sectionId]);
   openCmdBar();
   switchTab('mid');
-  renderMid(); renderStruct();
   setTimeout(() => {
-    const el = document.getElementById('sec-' + sectionId);
-    if (el) el.scrollIntoView({behavior:'smooth', block:'center'});
-  }, 80);
+    renderMid();
+    renderStruct();
+    scrollToSection(sectionId, false);
+  }, 30);
 }
 
 // Event delegation — handles clicks on graft region labels (avoids inline onclick)

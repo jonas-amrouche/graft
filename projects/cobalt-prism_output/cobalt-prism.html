@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Budget Tracker</title>
+    <style>
+        // [graft:category_card]
+        .category-card {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .category-card.exceeded-limit {
+            text-decoration: line-through;
+            color: red;
+        }
+        // [/graft:category_card]
+    </style>
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1>Budget Tracker</h1>
+        </header>
+        <section id="categories">
+            <!-- Category cards will be dynamically generated here -->
+        </section>
+        <footer>
+            <div id="summary">
+                <p>Total Income: $0</p>
+                <p>Total Expenses: $0</p>
+            </div>
+        </footer>
+        <button id="add-category-btn">Add Category</button>
+    </div>
+
+    <script>
+        // [graft:data]
+        const budgetCategories = [
+            { name: 'Groceries', balance: 0, limit: 500 },
+            { name: 'Utilities', balance: 0, limit: 200 },
+            { name: 'Entertainment', balance: 0, limit: 100 }
+        ];
+        let totalIncome = 0;
+        let totalExpenses = 0;
+        // [/graft:data]
+
+        // [graft:dashboard]
+        function renderCategories() {
+            const categoriesSection = document.getElementById('categories');
+            categoriesSection.innerHTML = '';
+            budgetCategories.forEach(category => {
+                const card = document.createElement('div');
+                card.className = `category-card ${category.balance > category.limit ? 'exceeded-limit' : ''}`;
+                card.innerHTML = `
+                    <div>
+                        <h3>${category.name}</h3>
+                        <p>Balance: $${category.balance}</p>
+                        <p>Limit: $${category.limit}</p>
+                    </div>
+                    <button onclick="editCategory('${category.name}')">Edit</button>
+                `;
+                categoriesSection.appendChild(card);
+            });
+        }
+
+        function renderSummary() {
+            const summary = document.getElementById('summary');
+            summary.innerHTML = `
+                <p>Total Income: $${totalIncome}</p>
+                <p>Total Expenses: $${totalExpenses}</p>
+            `;
+        }
+        // [/graft:dashboard]
+
+        // [graft:add_category]
+        document.getElementById('add-category-btn').addEventListener('click', () => {
+            const form = document.createElement('form');
+            form.innerHTML = `
+                <input type="text" id="new-category-name" placeholder="Category Name">
+                <input type="number" id="new-category-limit" placeholder="Monthly Limit">
+                <button type="submit">Add Category</button>
+            `;
+            document.body.appendChild(form);
+
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const name = document.getElementById('new-category-name').value;
+                const limit = parseFloat(document.getElementById('new-category-limit').value);
+                budgetCategories.push({ name, balance: 0, limit });
+                renderCategories();
+                document.body.removeChild(form);
+            });
+        });
+        // [/graft:add_category]
+
+        // [graft:update_category_balance]
+        function editCategory(name) {
+            const category = budgetCategories.find(c => c.name === name);
+            const form = document.createElement('form');
+            form.innerHTML = `
+                <input type="number" id="new-balance" placeholder="New Balance">
+                <button type="submit">Update Balance</button>
+            `;
+            document.body.appendChild(form);
+
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const newBalance = parseFloat(document.getElementById('new-balance').value);
+                category.balance = newBalance;
+                renderCategories();
+                document.body.removeChild(form);
+            });
+        }
+        // [/graft:update_category_balance]
+
+        // [graft:category_limits]
+        function enforceCategoryLimits() {
+            budgetCategories.forEach(category => {
+                if (category.balance > category.limit) {
+                    alert(`Warning: ${category.name} balance exceeds limit.`);
+                }
+            });
+        }
+        // [/graft:category_limits]
+
+        // [graft:anchor]
+        renderCategories();
+        renderSummary();
+        enforceCategoryLimits();
+        // [/graft:anchor]
+    </script>
+</body>
+</html>

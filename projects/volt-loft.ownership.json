@@ -1,0 +1,30 @@
+{
+  "data": {
+    "content": "\n        const taskList = [];\n        ",
+    "full": "// [graft:data]\n        const taskList = [];\n        // [/graft:data]"
+  },
+  "structure": {
+    "content": "\n        const taskListContainer = document.getElementById('task-list-container');\n        const addTaskBtn = document.getElementById('add-task-btn');\n        const addTaskForm = document.querySelector('.add-task-form');\n        const taskTitleInput = document.getElementById('task-title');\n        ",
+    "full": "// [graft:structure]\n        const taskListContainer = document.getElementById('task-list-container');\n        const addTaskBtn = document.getElementById('add-task-btn');\n        const addTaskForm = document.querySelector('.add-task-form');\n        const taskTitleInput = document.getElementById('task-title');\n        // [/graft:structure]"
+  },
+  "when_add_task": {
+    "content": "\n        function addTask() {\n            const title = taskTitleInput.value.trim();\n            if (title) {\n                taskList.unshift({ title, completed: false, date: new Date() });\n                renderTaskList();\n                taskTitleInput.value = '';\n            }\n        }\n        ",
+    "full": "// [graft:when_add_task]\n        function addTask() {\n            const title = taskTitleInput.value.trim();\n            if (title) {\n                taskList.unshift({ title, completed: false, date: new Date() });\n                renderTaskList();\n                taskTitleInput.value = '';\n            }\n        }\n        // [/graft:when_add_task]"
+  },
+  "when_complete_task": {
+    "content": "\n        function completeTask(index) {\n            taskList[index].completed = true;\n            renderTaskList();\n        }\n        ",
+    "full": "// [graft:when_complete_task]\n        function completeTask(index) {\n            taskList[index].completed = true;\n            renderTaskList();\n        }\n        // [/graft:when_complete_task]"
+  },
+  "assert_task_title": {
+    "content": "\n        function validateTaskTitle(title) {\n            return title.trim() !== '';\n        }\n        ",
+    "full": "// [graft:assert_task_title]\n        function validateTaskTitle(title) {\n            return title.trim() !== '';\n        }\n        // [/graft:assert_task_title]"
+  },
+  "surface_task_screen": {
+    "content": "\n        function renderTaskList() {\n            taskListContainer.innerHTML = '';\n            if (taskList.length === 0) {\n                taskListContainer.innerHTML = '<p>No tasks yet \u2014 add one above</p>';\n            } else {\n                taskList.forEach((task, index) => {\n                    const card = document.createElement('div');\n                    card.classList.add('task-card', task.completed ? 'completed' : '');\n                    card.innerHTML = `\n                        <span>${task.title}</span>\n                        <input type=\"checkbox\" ${task.completed ? 'checked' : ''} onclick=\"completeTask(${index})\">\n                        <span>${task.date.toLocaleString()}</span>\n                    `;\n                    taskListContainer.appendChild(card);\n                });\n            }\n        }\n        ",
+    "full": "// [graft:surface_task_screen]\n        function renderTaskList() {\n            taskListContainer.innerHTML = '';\n            if (taskList.length === 0) {\n                taskListContainer.innerHTML = '<p>No tasks yet \u2014 add one above</p>';\n            } else {\n                taskList.forEach((task, index) => {\n                    const card = document.createElement('div');\n                    card.classList.add('task-card', task.completed ? 'completed' : '');\n                    card.innerHTML = `\n                        <span>${task.title}</span>\n                        <input type=\"checkbox\" ${task.completed ? 'checked' : ''} onclick=\"completeTask(${index})\">\n                        <span>${task.date.toLocaleString()}</span>\n                    `;\n                    taskListContainer.appendChild(card);\n                });\n            }\n        }\n        // [/graft:surface_task_screen]"
+  },
+  "anchor": {
+    "content": "\n        function toggleAddTaskForm() {\n            addTaskForm.style.display = addTaskForm.style.display === 'none' ? 'block' : 'none';\n        }\n        ",
+    "full": "// [graft:anchor]\n        function toggleAddTaskForm() {\n            addTaskForm.style.display = addTaskForm.style.display === 'none' ? 'block' : 'none';\n        }\n        // [/graft:anchor]"
+  }
+}
