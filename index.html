@@ -154,132 +154,153 @@ body { background:var(--bg); color:var(--text); font-family:var(--font-ui); font
 .gen-bar-fill { height:100%; background:var(--c-accent); animation:gen-slide 1.5s ease-in-out infinite; }
 @keyframes gen-slide { 0%{width:0;margin-left:0} 50%{width:60%;margin-left:20%} 100%{width:0;margin-left:100%} }
 
-/* ── Chalkboard ── */
-.board {
-  flex:1; overflow:hidden; position:relative;
-  background:#141414;
-  cursor:grab;
-  user-select:none;
+/* ── Mid documentation view ── */
+.mid-doc-wrap {
+  flex:1; overflow-y:auto; overflow-x:hidden; position:relative;
+  background:#111;
   font-family:'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
 }
-.board.panning { cursor:grabbing; }
-.board-surface {
-  position:absolute; top:0; left:0;
-  width:0; height:0; transform-origin:0 0;
-  will-change:transform;
+.mid-doc {
+  max-width:860px; margin:0 auto;
+  padding:48px 40px 120px;
 }
-.board-empty {
+.mid-doc-empty {
   position:absolute; inset:0;
   display:flex; flex-direction:column; align-items:center; justify-content:center;
   gap:10px; color:rgba(255,255,255,.18); font-size:14px; text-align:center; line-height:1.9;
   pointer-events:none;
 }
-.board-empty-icon { font-size:32px; opacity:.15; }
+.mid-doc-empty-icon { font-size:32px; opacity:.15; }
 
-/* ── Zoom controls ── */
-.board-zoom {
-  position:absolute; bottom:16px; right:16px; z-index:10;
-  display:flex; gap:4px; align-items:center;
-}
-.board-zoom-btn {
-  width:26px; height:26px; border-radius:3px;
-  background:#131415; border:1px solid #272b2e;
-  color:#6a6660; font-size:14px; cursor:pointer;
-  display:flex; align-items:center; justify-content:center;
-  transition:color .1s, border-color .1s; line-height:1;
-}
-.board-zoom-btn:hover { color:#fff; border-color:#444; }
-.board-zoom-pct {
-  font-family:var(--font-mono); font-size:9px; color:#444;
-  min-width:30px; text-align:center; letter-spacing:.04em;
-}
-
-/* ── Part group (chalk rectangle) ── */
-.b-part-group {
-  position:absolute;
-  cursor:pointer;
+/* ── Anchor chain ── */
+.doc-anchors {
+  margin-bottom:48px;
+  padding:16px 20px;
+  border:1px solid rgba(160,200,240,.15);
   border-radius:6px;
-  transition:background .2s;
+  background:rgba(160,200,240,.03);
 }
-.b-part-group.is-verified {
-  background:rgba(40,90,50,.15);
+.doc-anchors-label {
+  font-family:var(--font-mono); font-size:9px; letter-spacing:.22em;
+  text-transform:uppercase; color:var(--c-anchor); opacity:.7;
+  margin-bottom:12px;
 }
-.b-part-group.is-targeted {
-  background:rgba(80,50,140,.1);
+.doc-anchor-item {
+  display:flex; align-items:flex-start; gap:10px;
+  padding:6px 0; border-top:1px solid rgba(160,200,240,.07);
+  cursor:pointer;
 }
-/* chalk outline via box-shadow — never affects layout */
-.b-part-group.is-targeted {
-  box-shadow: 0 0 0 2px rgba(176,144,220,.8), 0 0 20px rgba(140,100,220,.15);
+.doc-anchor-item:first-of-type { border-top:none; }
+.doc-anchor-item:hover .doc-anchor-name { color:#fff; }
+.doc-anchor-chain { color:var(--c-anchor); opacity:.5; font-size:11px; padding-top:1px; flex-shrink:0; }
+.doc-anchor-name {
+  font-size:12px; font-weight:600; color:rgba(160,200,240,.8);
+  transition:color .12s; line-height:1.4;
 }
-.b-part-group.is-verified {
-  box-shadow: 0 0 0 2px rgba(94,203,126,.7), 0 0 18px rgba(60,160,80,.1);
+.doc-anchor-body {
+  font-size:11px; color:rgba(160,200,240,.45); line-height:1.6; margin-top:2px;
 }
-.b-part-group.is-affected {
-  box-shadow: 0 0 0 2px rgba(224,176,80,.6), 0 0 14px rgba(200,140,40,.1);
-}
-/* Both verified AND targeted — show green ring inside, purple outside */
-.b-part-group.is-verified.is-targeted {
-  box-shadow:
-    0 0 0 2px rgba(94,203,126,.7),
-    0 0 0 5px rgba(176,144,220,.6),
-    0 0 22px rgba(140,100,220,.15);
-  background: rgba(60,40,100,.12);
-}
-.b-part-header {
-  position:relative; z-index:1;
-  padding:0 0 10px 0;
-  margin-bottom:10px;
-  border-bottom:1px solid rgba(255,255,255,.08);
-}
-.b-part-name {
-  font-size:20px; font-weight:700;
-  color:rgba(245,245,245,.92);
-  letter-spacing:-.01em; line-height:1.1;
-  cursor:pointer; transition:color .12s;
-  font-family:'Segoe UI', Arial, sans-serif;
-}
-.b-part-name:hover { color:#fff; }
-.b-part-name.is-targeted { color:rgba(200,170,255,.98); }
-.b-part-verified-label {
-  font-size:10px; font-weight:700; letter-spacing:.2em;
-  text-transform:uppercase; color:rgba(94,203,126,.8);
-  margin-top:3px;
-}
-.b-part-affected-label {
-  font-size:10px; font-weight:600; letter-spacing:.16em;
-  text-transform:uppercase; color:var(--c-warn);
-  margin-top:3px; animation:blink-warn 1.8s ease infinite;
-}
-.b-part-verify {
-  display:inline-block; margin-top:6px;
-  font-size:9px; font-weight:600; letter-spacing:.12em; text-transform:uppercase;
-  padding:6px 16px; border-radius:3px; cursor:pointer;
-  background:transparent; border:1px solid rgba(255,255,255,.15); color:rgba(255,255,255,.3);
-  transition:border-color .14s, color .14s;
-  font-family:var(--font-mono);
-}
-.b-part-verify:hover { border-color:rgba(255,255,255,.4); color:rgba(255,255,255,.7); }
-.b-part-verify.is-verified { border-color:rgba(94,203,126,.6); color:rgba(94,203,126,.85); }
 
-/* Section columns inside the group */
-.b-sections-row {
-  position:relative; z-index:1;
-  display:flex; flex-direction:row; gap:0;
+/* ── Part block ── */
+.doc-part {
+  margin-bottom:56px;
+  scroll-margin-top:32px;
 }
-.b-section {
-  cursor:pointer; flex:1;
-  padding:0 14px 6px 10px;
-  border-left:2px solid rgba(255,255,255,.13);
-  transition:background .1s, border-color .1s;
+.doc-part-header {
+  display:flex; align-items:baseline; gap:12px;
+  margin-bottom:20px;
+  padding-bottom:12px;
+  border-bottom:1px solid rgba(255,255,255,.07);
 }
-.b-section:first-child { border-left:2px solid rgba(255,255,255,.13); }
-.b-section:hover       { background:rgba(255,255,255,.04); border-left-color:rgba(255,255,255,.3); }
-.b-section.is-targeted { background:rgba(120,80,200,.13); border-left-color:rgba(176,144,220,.85); }
-.b-section.is-targeted:hover { background:rgba(120,80,200,.18); }
-.b-sec-kw {
-  display:flex; align-items:center; gap:6px;
-  margin-bottom:5px; margin-top:2px;
+.doc-part-name {
+  font-size:22px; font-weight:700;
+  color:rgba(245,245,245,.92); letter-spacing:-.02em;
+  cursor:pointer; transition:color .12s;
 }
+.doc-part-name:hover { color:#fff; }
+.doc-part-name.is-targeted { color:rgba(200,170,255,.98); }
+.doc-part-status {
+  font-family:var(--font-mono); font-size:9px; letter-spacing:.18em;
+  text-transform:uppercase; padding:2px 7px; border-radius:2px;
+}
+.doc-part-status.verified { color:rgba(94,203,126,.9); border:1px solid rgba(94,203,126,.3); }
+.doc-part-status.affected { color:var(--c-warn); border:1px solid rgba(224,176,80,.3); animation:blink-warn 1.8s ease infinite; }
+.doc-part-verify {
+  margin-left:auto; flex-shrink:0;
+  font-size:9px; font-weight:600; letter-spacing:.12em; text-transform:uppercase;
+  padding:4px 12px; border-radius:3px; cursor:pointer;
+  background:transparent; border:1px solid rgba(255,255,255,.12); color:rgba(255,255,255,.28);
+  transition:border-color .14s, color .14s; font-family:var(--font-mono);
+}
+.doc-part-verify:hover { border-color:rgba(255,255,255,.4); color:rgba(255,255,255,.7); }
+.doc-part-verify.is-verified { border-color:rgba(94,203,126,.5); color:rgba(94,203,126,.8); }
+
+/* ── Section grid inside part ── */
+.doc-sections {
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(240px,1fr));
+  gap:1px;
+  background:rgba(255,255,255,.05);
+  border-radius:5px;
+  overflow:hidden;
+}
+.doc-section {
+  background:#111;
+  padding:16px 18px 18px;
+  cursor:pointer;
+  transition:background .12s;
+  position:relative;
+}
+.doc-section:hover { background:#161618; }
+.doc-section.is-targeted {
+  background:rgba(100,65,180,.12);
+  outline:none;
+}
+.doc-section.is-targeted::before {
+  content:''; position:absolute; left:0; top:0; bottom:0; width:2px;
+  background:rgba(176,144,220,.85);
+}
+/* keyword eyebrow */
+.doc-kw {
+  font-family:var(--font-mono); font-size:8px; font-weight:700;
+  letter-spacing:.22em; text-transform:uppercase;
+  margin-bottom:6px;
+}
+.doc-kw-label {
+  padding:1px 5px; border-radius:2px;
+}
+
+/* keyword colors */
+.doc-kw-DATA    .doc-kw-label { color:var(--c-data);      background:rgba(94,203,126,.1); }
+.doc-kw-STRUCTURE .doc-kw-label { color:var(--c-structure); background:rgba(80,160,220,.1); }
+.doc-kw-WHEN    .doc-kw-label { color:var(--c-when);      background:rgba(224,112,128,.1); }
+.doc-kw-ASSERT  .doc-kw-label { color:var(--c-assert);    background:rgba(224,154,80,.1); }
+.doc-kw-SURFACE .doc-kw-label { color:var(--c-surface);   background:rgba(176,144,220,.1); }
+.doc-kw-ANCHOR  .doc-kw-label { color:var(--c-anchor);    background:rgba(160,200,240,.1); }
+.doc-kw-STATE   .doc-kw-label { color:var(--c-data);      background:rgba(94,203,126,.1); }
+.doc-kw-TYPE    .doc-kw-label { color:var(--c-data);      background:rgba(94,203,126,.1); }
+
+.doc-sec-name {
+  font-size:14px; font-weight:600;
+  color:rgba(235,235,235,.9); line-height:1.25;
+  margin-bottom:4px;
+}
+.doc-intent {
+  font-size:11px; color:rgba(200,200,200,.38);
+  font-style:italic; line-height:1.4; margin-bottom:8px;
+}
+.doc-body {
+  font-size:12px; line-height:1.8; color:rgba(210,210,210,.58);
+}
+
+/* hint bar */
+.doc-hint {
+  position:fixed; bottom:16px; left:50%; transform:translateX(-50%);
+  font-family:var(--font-mono); font-size:9px; color:var(--text-4);
+  letter-spacing:.08em; pointer-events:none; z-index:5;
+}
+
+/* keep kw-label for legacy compat */
 .b-kw-label {
   font-family:var(--font-mono); font-size:8px; font-weight:700;
   letter-spacing:.2em; text-transform:uppercase;
@@ -387,21 +408,7 @@ body { background:var(--bg); color:var(--text); font-family:var(--font-ui); font
   flex-shrink:0;
 }
 
-/* ── Marquee selection rect ── */
-.board-marquee {
-  position:absolute; pointer-events:none; z-index:50;
-  border:1px solid rgba(176,144,220,.7);
-  background:rgba(120,80,200,.08);
-  border-radius:2px;
-  display:none;
-}
-
-/* hint bar at bottom of board */
-.board-hint {
-  position:absolute; bottom:16px; left:50%; transform:translateX(-50%);
-  font-family:var(--font-mono); font-size:9px; color:var(--text-4);
-  letter-spacing:.08em; pointer-events:none;
-}
+/* marquee removed */
 
 /* ── Scope switcher ── */
 .scope-switcher {
@@ -769,11 +776,11 @@ code[class*="language-"], pre[class*="language-"] { background:transparent !impo
 
     <div class="output-area active" id="tab-mid">
       <div class="stream-view" id="mid-stream" style="display:none"></div>
-      <div class="board" id="board">
-        <div class="board-surface" id="board-surface"></div>
-        <div class="board-empty" id="board-empty">
-          <div class="board-empty-icon">◈</div>
-          <div>Press <strong>/</strong> to write a prompt.<br>Click a part or section to target it.</div>
+      <div class="mid-doc-wrap" id="mid-doc-wrap">
+        <div class="mid-doc" id="mid-doc"></div>
+        <div class="mid-doc-empty" id="mid-doc-empty">
+          <div class="mid-doc-empty-icon">◈</div>
+          <div>Press <strong>/</strong> to write a prompt.</div>
         </div>
 
         <!-- Floating command bar -->
@@ -800,7 +807,7 @@ code[class*="language-"], pre[class*="language-"] { background:transparent !impo
           </div>
         </div>
 
-        <!-- History panel (floats above cmd bar) -->
+        <!-- History panel -->
         <div id="history-drawer" class="cmd-history" style="display:none">
           <div class="cmd-history-head">
             <span>History</span>
@@ -809,15 +816,7 @@ code[class*="language-"], pre[class*="language-"] { background:transparent !impo
           <div id="history-list" style="flex:1;overflow-y:auto;padding:0 0 8px"></div>
         </div>
 
-        <div id="board-marquee" class="board-marquee"></div>
-        <div class="board-hint" id="board-hint">/ prompt  ·  ctrl+drag to select  ·  esc to dismiss</div>
-        <div class="board-zoom">
-          <button class="board-zoom-btn" onclick="boardZoom(-0.15)" title="Zoom out">−</button>
-          <span class="board-zoom-pct" id="board-zoom-pct">100%</span>
-          <button class="board-zoom-btn" onclick="boardZoom(+0.15)" title="Zoom in">+</button>
-          <button class="board-zoom-btn" onclick="boardZoomReset()" title="Reset" style="font-size:9px;width:auto;padding:0 6px;font-family:var(--font-mono)">fit</button>
-          <button class="board-zoom-btn" onclick="toggleHistory()" title="History" style="font-size:10px;width:auto;padding:0 6px;font-family:var(--font-mono)">⟳</button>
-        </div>
+        <div class="doc-hint" id="doc-hint">/ prompt  ·  click section to target  ·  esc to dismiss</div>
       </div>
     </div>
 
@@ -976,7 +975,8 @@ function openNew() {
 }
 
 function clearAllPanels() {
-  document.getElementById('board-surface').innerHTML = '<div class="mid-empty"><div class="mid-empty-icon">◈</div><div>Write a prompt on the right.<br>Press <strong>Enter</strong> to compile.</div></div>';
+  document.getElementById('mid-doc').innerHTML = '';
+  document.getElementById('mid-doc-empty').style.display = '';
   document.getElementById('mid-stream').style.display = 'none';
   document.getElementById('mid-stream').textContent = '';
   document.getElementById('code-out').value = ''; setCodeDisplay('');
@@ -1016,7 +1016,7 @@ async function stopGeneration() {
   if (currentReader) { try { await currentReader.cancel(); } catch(e) {} currentReader = null; }
   setGenerating(false); setStatus('Stopped'); updateButtons();
   document.getElementById('mid-stream').style.display = 'none';
-  document.getElementById('board').style.display = '';
+  document.getElementById('mid-doc-wrap').style.display = '';
   document.getElementById('code-stream').style.display = 'none';
   // code-out is always hidden (display handled by code-display div)
 }
@@ -1161,7 +1161,7 @@ function openCmdBar() {
   // auto-resize textarea on open
   const ta = document.getElementById('prompt-ta');
   if (ta) { ta.style.height = 'auto'; setTimeout(() => ta.focus(), 20); }
-  document.getElementById('board-hint').style.display = 'none';
+  document.getElementById('doc-hint').style.display = 'none';
 }
 
 function closeCmdBar() {
@@ -1170,7 +1170,7 @@ function closeCmdBar() {
   bar.style.display = 'none';
   const hist = document.getElementById('history-drawer');
   if (hist) hist.style.display = 'none';
-  document.getElementById('board-hint').style.display = '';
+  document.getElementById('doc-hint').style.display = '';
   historyOpen = false;
   // Clear target state so board stops showing highlights
   targetPartId = null; targetSectionIds = [];
@@ -1228,7 +1228,7 @@ async function compileMidFromPrompt() {
   switchTab('mid');
 
   const streamEl = document.getElementById('mid-stream');
-  const viewerEl = document.getElementById('board');
+  const viewerEl = document.getElementById('mid-doc-wrap');
   // Keep board visible — stream appears as gen-bar pulse only
   streamEl.style.display = 'none';
   viewerEl.style.display = '';
@@ -1468,8 +1468,8 @@ function liveParsePartial(text, existingSections, existingParts) {
       const ls = line.trim();
       if (inBody) { bodyLines.push(line); return; }
       if (ls.startsWith('PART_ID:')) partId = ls.slice(8).trim();
-      else if (/^(STATE|TYPE|STRUCTURE|WHEN):\s/i.test(ls)) {
-        const m = ls.match(/^(STATE|TYPE|STRUCTURE|WHEN):\s*(.*)/i);
+      else if (/^(ANCHOR|STRUCTURE|DATA|WHEN|ASSERT|SURFACE|STATE|TYPE):\s/i.test(ls)) {
+        const m = ls.match(/^(ANCHOR|STRUCTURE|DATA|WHEN|ASSERT|SURFACE|STATE|TYPE):\s*(.*)/i);
         if (m) { kw = m[1].toUpperCase(); name = m[2].trim(); }
       } else if (ls.startsWith('INTENT:')) intent = ls.slice(7).trim();
       else if (ls.startsWith('MARKER:')) marker = ls.slice(7).trim();
@@ -1505,252 +1505,130 @@ function liveParsePartial(text, existingSections, existingParts) {
 }
 
 function renderMidPreview(previewSections, previewParts) {
-  // Lightweight board update that preserves existing layout
-  // Swap out sections/parts temporarily, render, restore
-  const savedSections = sections;
-  const savedParts    = parts;
+  const origSections = sections, origParts = parts;
   sections = previewSections;
-  parts    = previewParts;
+  parts = previewParts;
   renderMid();
-  sections = savedSections;
-  parts    = savedParts;
+  sections = origSections;
+  parts = origParts;
 }
 
 // ── Board (spatial Mid viewer) ────────────────────────────────────────────────
 
 const KW_COLOR = {
-  STATE:'var(--c-state)', TYPE:'var(--c-type)',
-  STRUCTURE:'var(--c-structure)', WHEN:'var(--c-when)'
+  DATA:'var(--c-data)', STRUCTURE:'var(--c-structure)',
+  WHEN:'var(--c-when)', ASSERT:'var(--c-assert)',
+  SURFACE:'var(--c-surface)', ANCHOR:'var(--c-anchor)',
+  STATE:'var(--c-data)', TYPE:'var(--c-data)'
 };
 const KW_CAP = {
-  STATE:'#2a4a35', TYPE:'#4a3820', STRUCTURE:'#1e3448', WHEN:'#4a2028'
+  DATA:'#2a4a35', STRUCTURE:'#1e3448', WHEN:'#4a2028',
+  ASSERT:'#4a3820', SURFACE:'#2e2048', ANCHOR:'#1a3248',
+  STATE:'#2a4a35', TYPE:'#2a4a35'
 };
 
 // Pan + zoom state
-let panX = 60,  panY = 40,  boardScale = 0.9;
-let isPanning = false, panSX = 0, panSY = 0, panOX = 0, panOY = 0;
-let boardReady = false;
+// ── Doc renderer state ───────────────────────────────────────────────────────
+// (pan/marquee/board removed in favour of doc view)
+let panMoved = false; // kept for compat with verify btn handlers
 
-let panMoved = false;
+function renderMid() {
+  const doc     = document.getElementById('mid-doc');
+  const empty   = document.getElementById('mid-doc-empty');
+  doc.innerHTML = '';
 
-// Marquee (ctrl+drag) state
-let isMarquee = false, mqSX = 0, mqSY = 0; // start in board-local coords
-let suppressNextBgClose = false; // prevent bg-click close after marquee
-let justFinishedMarquee = false; // prevent section mouseup from firing after marquee release
+  if (!sections.length) {
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
 
-function initBoard() {
-  const board = document.getElementById('board');
-  if (!board || boardReady) return;
-  boardReady = true;
+  // ── ANCHOR chain ────────────────────────────────────────────────
+  const anchors = sections.filter(s => s.keyword === 'ANCHOR' || s.part_id === '__anchors');
+  if (anchors.length) {
+    const chain = document.createElement('div');
+    chain.className = 'doc-anchors';
+    const lbl = document.createElement('div');
+    lbl.className = 'doc-anchors-label';
+    lbl.textContent = 'Anchors';
+    chain.appendChild(lbl);
+    anchors.forEach(s => {
+      const item = document.createElement('div');
+      item.className = 'doc-anchor-item';
+      item.id = `sec-${s.id}`;
+      item.onclick = () => clickSection(s.id, s.part_id, false);
+      item.innerHTML = `<span class="doc-anchor-chain">○</span>
+        <div>
+          <div class="doc-anchor-name">${esc(s.name)}</div>
+          <div class="doc-anchor-body">${esc(s.body)}</div>
+        </div>`;
+      chain.appendChild(item);
+    });
+    doc.appendChild(chain);
+  }
 
-  board.addEventListener('mousedown', e => {
-    if (e.button !== 0) return;
-    if (e.target.closest('button, a, input, select, textarea')) return;
-    if (e.ctrlKey || e.metaKey) {
-      // Ctrl+drag → marquee select mode, not pan
-      isMarquee = true;
-      panMoved  = false;
-      const rect = board.getBoundingClientRect();
-      mqSX = e.clientX - rect.left;
-      mqSY = e.clientY - rect.top;
-      board.classList.add('panning'); // keep grabbing cursor
-      e.preventDefault();
-      return;
-    }
-    isPanning = true;
-    panMoved  = false;
-    panSX = e.clientX; panSY = e.clientY;
-    panOX = panX;      panOY = panY;
-    board.classList.add('panning');
-  });
+  // ── Parts ───────────────────────────────────────────────────────
+  const partOrder = parts.length
+    ? parts.filter(p => p.id !== '__anchors' && sections.some(s => s.part_id === p.id))
+    : [{ id:'__all', name: project?.name || 'untitled', status:'draft' }];
 
-  window.addEventListener('mousemove', e => {
-    if (isMarquee) {
-      const rect = board.getBoundingClientRect();
-      const cx = e.clientX - rect.left;
-      const cy = e.clientY - rect.top;
-      const x = Math.min(mqSX, cx), y = Math.min(mqSY, cy);
-      const w = Math.abs(cx - mqSX),  h = Math.abs(cy - mqSY);
-      if (!panMoved && Math.hypot(w, h) > 4) panMoved = true;
-      const mq = document.getElementById('board-marquee');
-      if (mq) mq.style.cssText = `display:block;left:${x}px;top:${y}px;width:${w}px;height:${h}px;`;
-      // Live selection highlight — no renderMid, just toggle CSS classes
-      liveMarqueeHighlight(rect, x, y, w, h);
-      return;
-    }
-    if (!isPanning) return;
-    const dx = e.clientX - panSX;
-    const dy = e.clientY - panSY;
-    if (!panMoved && Math.hypot(dx, dy) > 4) panMoved = true;
-    if (!panMoved) return;
-    panX = panOX + dx;
-    panY = panOY + dy;
-    applyPan();
-  });
-
-  // Capture phase on board — fires before ANY child stopPropagation can block it.
-  // This is the only reliable way to clear pan/marquee when releasing over a part/section.
-  const clearDrag = e => {
-    if (isMarquee) {
-      isMarquee = false;
-      board.classList.remove('panning');
-      const mq = document.getElementById('board-marquee');
-      if (mq) mq.style.display = 'none';
-      if (panMoved) finishMarqueeSelect(e);
-      panMoved = false;
-      return;
-    }
-    isPanning = false;
-    panMoved = false;   // ← always reset so verify button works after panning
-    board.classList.remove('panning');
-  };
-  board.addEventListener('mouseup', clearDrag, true);  // capture — cannot be blocked
-  window.addEventListener('mouseup', clearDrag);       // fallback for release outside board
-
-  // Scroll to zoom
-  board.addEventListener('wheel', e => {
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.08 : 0.08;
-    boardZoomAt(delta, e.clientX, e.clientY);
-  }, { passive: false });
-}
-
-function hitTestRect(boardRect, rx, ry, rw, rh) {
-  // Returns { byPart, hitSections } for sections intersecting the board-local rect
-  const hit = [];
+  const partMap = {};
   sections.forEach(s => {
-    const el = document.getElementById('sec-' + s.id);
-    if (!el) return;
-    const er = el.getBoundingClientRect();
-    const ex = er.left - boardRect.left, ey = er.top - boardRect.top;
-    if (ex < rx + rw && ex + er.width > rx && ey < ry + rh && ey + er.height > ry)
-      hit.push(s);
+    if (s.keyword !== 'ANCHOR' && s.part_id !== '__anchors') {
+      const p = s.part_id || '__all';
+      (partMap[p] = partMap[p] || []).push(s);
+    }
   });
-  const byPart = {};
-  hit.forEach(s => { (byPart[s.part_id] = byPart[s.part_id] || []).push(s); });
-  return { hit, byPart };
-}
 
-function liveMarqueeHighlight(boardRect, rx, ry, rw, rh) {
-  const { hit, byPart } = hitTestRect(boardRect, rx, ry, rw, rh);
-  // Pick winning part
-  const winPartId = hit.length
-    ? Object.entries(byPart).sort((a,b) => b[1].length - a[1].length)[0][0]
-    : null;
-  const winIds = new Set(winPartId ? (byPart[winPartId] || []).map(s => s.id) : []);
-
-  // Check if all sections of winning part are selected → part-level
-  const partSecs = winPartId ? sections.filter(s => s.part_id === winPartId) : [];
-  const allSelected = partSecs.length > 0 && partSecs.every(s => winIds.has(s.id));
-
-  // Directly toggle CSS classes — no renderMid (too slow for mousemove)
-  sections.forEach(s => {
-    const el = document.getElementById('sec-' + s.id);
-    if (!el) return;
-    const active = winIds.has(s.id);
-    el.classList.toggle('is-targeted', active);
-  });
-  // Toggle part-level highlight
-  const partEls = document.querySelectorAll('.b-part-group');
-  partEls.forEach(g => {
-    // Find part id by checking if any child section is in this group
-    const firstSec = g.querySelector('.b-section');
-    if (!firstSec) return;
-    const sId = firstSec.id.replace('sec-','');
-    const sec = sections.find(x => x.id === sId);
-    const isWinPart = sec?.part_id === winPartId;
-    g.classList.toggle('is-targeted', isWinPart && allSelected);
-  });
-}
-
-function finishMarqueeSelect(e) {
-  const board = document.getElementById('board');
-  const boardRect = board.getBoundingClientRect();
-  const cx = e.clientX - boardRect.left;
-  const cy = e.clientY - boardRect.top;
-  const rx = Math.min(mqSX, cx), ry = Math.min(mqSY, cy);
-  const rw = Math.abs(cx - mqSX), rh = Math.abs(cy - mqSY);
-  if (rw < 6 || rh < 6) return;
-
-  const { hit, byPart } = hitTestRect(boardRect, rx, ry, rw, rh);
-  if (!hit.length) return;
-  suppressNextBgClose = true;
-  justFinishedMarquee = true;
-
-  const winPartId = Object.entries(byPart).sort((a,b) => b[1].length - a[1].length)[0][0];
-  const winSecs   = byPart[winPartId];
-
-  // If all sections of part are selected, treat as full part select
-  const allPartSecs = sections.filter(s => s.part_id === winPartId);
-  const allSelected = allPartSecs.length === winSecs.length;
-
-  targetPartId     = winPartId;
-  targetSectionIds = allSelected ? [] : winSecs.map(s => s.id);
-  setTarget(winPartId, targetSectionIds);
-  openCmdBar();
-  renderMid();
-  renderStruct();
-}
-
-function applyPan() {
-  const surface = document.getElementById('board-surface');
-  if (surface) surface.style.transform = `translate(${panX}px,${panY}px) scale(${boardScale})`;
-  const pct = document.getElementById('board-zoom-pct');
-  if (pct) pct.textContent = Math.round(boardScale * 100) + '%';
-}
-
-function boardZoom(delta) {
-  const board = document.getElementById('board');
-  if (!board) return;
-  const rect = board.getBoundingClientRect();
-  boardZoomAt(delta, rect.left + rect.width/2, rect.top + rect.height/2);
-}
-
-function boardZoomAt(delta, cx, cy) {
-  const board = document.getElementById('board');
-  if (!board) return;
-  const rect = board.getBoundingClientRect();
-  const newScale = Math.min(2.5, Math.max(0.25, boardScale + delta));
-  // Adjust pan so zoom centres on cursor
-  const bx = cx - rect.left;
-  const by = cy - rect.top;
-  panX = bx - (bx - panX) * (newScale / boardScale);
-  panY = by - (by - panY) * (newScale / boardScale);
-  boardScale = newScale;
-  applyPan();
-}
-
-function boardZoomReset() {
-  boardScale = 0.9; panX = 60; panY = 40;
-  applyPan();
-}
-
-// Card layout: flow in columns by keyword group
-// STATE/TYPE anchor top-left, STRUCTURE to their right, WHEN spread below
-function computeCardPositions(partOrder, partMap) {
-  // Assign each part a column based on dominant keyword
-  // cols: 0=data(STATE/TYPE), 1=structure, 2=behaviour(WHEN), 3=mixed
-  const COL_X  = [0, 310, 620, 930];
-  const COL_GAP = 28;
-  const colY   = [0, 0, 0, 0];
-
-  return partOrder.map(part => {
+  partOrder.forEach(part => {
     const secs = partMap[part.id] || [];
-    const kws  = secs.map(s => s.keyword);
-    let col = 3;
-    if (kws.every(k => k === 'STATE' || k === 'TYPE'))       col = 0;
-    else if (kws.every(k => k === 'STRUCTURE'))               col = 1;
-    else if (kws.every(k => k === 'WHEN'))                    col = 2;
-    else if (kws.filter(k => k==='STATE'||k==='TYPE').length > kws.length/2) col = 0;
-    else if (kws.filter(k => k==='WHEN').length > kws.length/2) col = 2;
-    else if (kws.filter(k => k==='STRUCTURE').length > 0)        col = 1;
+    if (!secs.length) return;
 
-    const x = COL_X[col];
-    const y = colY[col];
-    // Estimate card height: head≈56 + acts≈28 + sections*(~70)
-    const cardH = 56 + 28 + secs.length * 72;
-    colY[col] += cardH + COL_GAP;
-    return { part, secs, x, y };
+    const status      = part.status || 'draft';
+    const isVerified  = status === 'verified';
+    const isAffected  = status === 'affected';
+    const isTargeted  = targetPartId === part.id && !targetSectionIds.length;
+
+    const partEl = document.createElement('div');
+    partEl.className = 'doc-part';
+    partEl.id = `part-${part.id}`;
+
+    // Header
+    const header = document.createElement('div');
+    header.className = 'doc-part-header';
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'doc-part-name' + (isTargeted ? ' is-targeted' : '');
+    nameEl.textContent = toPascalLabel(part.name);
+    nameEl.onclick = () => clickPart(part.id);
+    header.appendChild(nameEl);
+
+    if (isVerified) {
+      const st = document.createElement('span');
+      st.className = 'doc-part-status verified';
+      st.textContent = 'Verified';
+      header.appendChild(st);
+    } else if (isAffected) {
+      const st = document.createElement('span');
+      st.className = 'doc-part-status affected';
+      st.textContent = 'Affected';
+      header.appendChild(st);
+    }
+
+    const vBtn = document.createElement('button');
+    vBtn.className = 'doc-part-verify' + (isVerified ? ' is-verified' : '');
+    vBtn.textContent = isVerified ? '✓ Verified' : 'Verify';
+    vBtn.onclick = e => { e.stopPropagation(); if (isVerified) unverifyPart(part.id); else verifyPart(part.id); };
+    header.appendChild(vBtn);
+    partEl.appendChild(header);
+
+    // Section grid
+    const grid = document.createElement('div');
+    grid.className = 'doc-sections';
+    secs.forEach(s => grid.appendChild(buildSection(s, part.id)));
+    partEl.appendChild(grid);
+
+    doc.appendChild(partEl);
   });
 }
 
@@ -1760,168 +1638,37 @@ function setScope(scope) {
     const btn = document.getElementById('scope-' + s);
     if (btn) btn.classList.toggle('scope-btn-active', s === scope);
   });
-  drawHalos();
 }
 
-function drawHalos() { /* halos removed — section styling via CSS only */ }
-
-function renderMid() {
-  const empty   = document.getElementById('board-empty');
-  const surface = document.getElementById('board-surface');
-
-  if (!sections.length) {
-    empty.style.display = ''; surface.innerHTML = ''; return;
-  }
-  empty.style.display = 'none';
-  initBoard();
-  surface.innerHTML = '';
-
-  const partOrder = parts.length
-    ? parts.filter(p => sections.some(s => s.part_id === p.id))
-    : [{ id:'__all', name: project?.name || 'untitled', status:'draft' }];
-
-  const partMap = {};
-  sections.forEach(s => { const p = s.part_id||'__all'; (partMap[p]=partMap[p]||[]).push(s); });
-
-  // ── Two-column grid with dynamic X so wide parts never bleed ────────────
-  const GAP_Y   = 60;
-  const GAP_X   = 60;   // gap between columns
-  const PAD     = 20;
-  const SEC_W   = 210;
-  const pending = [];
-
-  // Pre-compute column assignments and widths
-  const partData = [];
-  partOrder.forEach((part, i) => {
-    const secs = partMap[part.id] || [];
-    if (!secs.length) return;
-    partData.push({ part, secs, col: partData.length % 2,
-                    w: secs.length * SEC_W + PAD * 2 });
-  });
-
-  // Max card width per column → sets col 1 X so nothing can overlap
-  const maxW = [0, 0];
-  partData.forEach(d => { maxW[d.col] = Math.max(maxW[d.col], d.w); });
-  const COL_X = [60, 60 + (maxW[0] || 400) + GAP_X];
-
-  partData.forEach(({ part, secs, col, w }) => {
-    const status      = part.status || 'draft';
-    const isVerified  = status === 'verified';
-    const isAffected  = status === 'affected';
-    const isTargeted  = targetPartId === part.id && !targetSectionIds.length;
-    const groupW      = w;
-
-    // Outer group div
-    const group = document.createElement('div');
-    group.className = 'b-part-group'
-      + (isVerified ? ' is-verified' : '')
-      + (isTargeted ? ' is-targeted' : '');
-    group.style.cssText = `left:${COL_X[col]}px;top:0px;width:${groupW}px;padding:${PAD}px;`;
-    group.onmouseup = e => {
-      if (panMoved) return;
-      if (e.target.closest('button,.b-section,.b-part-name')) return;
-      clickPart(part.id);
-    };
-
-    // No SVG needed — outline handled by box-shadow CSS
-
-    // Header
-    const header = document.createElement('div');
-    header.className = 'b-part-header';
-
-    const nameEl = document.createElement('div');
-    nameEl.className = 'b-part-name' + (isTargeted ? ' is-targeted' : '');
-    nameEl.textContent = toPascalLabel(part.name);
-    nameEl.onmouseup = e => {
-      if (panMoved) return;
-      e.stopPropagation();
-      clickPart(part.id);
-    };
-    header.appendChild(nameEl);
-
-    if (isVerified) {
-      const lbl = document.createElement('div');
-      lbl.className = 'b-part-verified-label'; lbl.textContent = 'Verified';
-      header.appendChild(lbl);
-    } else if (isAffected) {
-      const lbl = document.createElement('div');
-      lbl.className = 'b-part-affected-label'; lbl.textContent = 'Affected';
-      header.appendChild(lbl);
-    }
-
-    const vBtn = document.createElement('button');
-    vBtn.className = 'b-part-verify' + (isVerified ? ' is-verified' : '');
-    vBtn.textContent = isVerified ? '✓ Verified' : 'Verify';
-    vBtn.addEventListener('mousedown', e => { e.stopPropagation(); e.preventDefault(); });
-    vBtn.addEventListener('mouseup',   e => { e.stopPropagation(); if (!panMoved) { if (isVerified) unverifyPart(part.id); else verifyPart(part.id); } });
-    vBtn.addEventListener('click',     e => { e.stopPropagation(); e.preventDefault(); });
-    header.appendChild(vBtn);
-    group.appendChild(header);
-
-    // Section columns
-    const row = document.createElement('div');
-    row.className = 'b-sections-row';
-    secs.forEach(s => {
-      const el = buildSection(s, part.id);
-      el.style.width = SEC_W + 'px';
-      row.appendChild(el);
-    });
-    group.appendChild(row);
-
-    surface.appendChild(group);
-    pending.push({ group, isTargeted, isVerified, isAffected, col });
-  });
-
-  // ── RAF: measure real heights, stack each column cleanly ────────────
-  pending.forEach(({ group }) => { group.style.visibility = 'hidden'; });
-
-  requestAnimationFrame(() => {
-    const colCur = [60, 60];
-    pending.forEach(({ group, col }) => {
-      const h = group.offsetHeight;
-      group.style.top        = colCur[col] + 'px';
-      group.style.left       = COL_X[col] + 'px';
-      group.style.visibility = '';
-      colCur[col] += h + GAP_Y;
-    });
-  });
-
-  applyPan();
-}
+function drawHalos() { /* removed */ }
 
 
 function buildSection(s, partId) {
   const isTargeted = targetSectionIds.includes(s.id);
-  const kw = s.keyword || 'STATE';
+  const kw = s.keyword || 'DATA';
 
   const el = document.createElement('div');
-  el.className = 'b-section' + (isTargeted ? ' is-targeted' : '');
+  el.className = 'doc-section' + (isTargeted ? ' is-targeted' : '');
   el.id = `sec-${s.id}`;
-  el.onmouseup = e => {
-    if (panMoved) return;
-    if (justFinishedMarquee) { justFinishedMarquee = false; return; }
-    e.stopPropagation();
-    clickSection(s.id, partId, e.shiftKey);
-  };
+  el.onclick = e => { e.stopPropagation(); clickSection(s.id, partId, e.shiftKey); };
 
-  // Keyword row with colored pill label + regen
   const kwRow = document.createElement('div');
-  kwRow.className = `b-sec-kw b-kw-${kw}`;
+  kwRow.className = `doc-kw doc-kw-${kw}`;
   const kwLabel = document.createElement('span');
-  kwLabel.className = 'b-kw-label';
+  kwLabel.className = 'doc-kw-label';
   kwLabel.textContent = kw;
-  kwRow.append(kwLabel);
+  kwRow.appendChild(kwLabel);
 
   const nameEl = document.createElement('div');
-  nameEl.className = 'b-sec-name';
+  nameEl.className = 'doc-sec-name';
   nameEl.textContent = s.name;
 
   const intentEl = document.createElement('div');
-  intentEl.className = 'b-intent';
+  intentEl.className = 'doc-intent';
   intentEl.textContent = s.intent_tag;
 
   const bodyEl = document.createElement('div');
-  bodyEl.className = 'b-body';
+  bodyEl.className = 'doc-body';
   bodyEl.textContent = s.body;
 
   el.append(kwRow, nameEl, intentEl, bodyEl);
@@ -1964,12 +1711,10 @@ function clickSection(sectionId, partId, shift) {
 
 function scrollToSection(sectionId, shiftKey) {
   if (shiftKey) {
-    // Shift-click: add/remove from target selection, open cmd bar
     const s = sections.find(x => x.id === sectionId);
     if (!s) return;
     const partId = s.part_id;
     if (targetPartId !== partId) {
-      // Different part — start fresh
       targetSectionIds = [sectionId];
     } else if (targetSectionIds.includes(sectionId)) {
       targetSectionIds = targetSectionIds.filter(id => id !== sectionId);
@@ -1981,47 +1726,10 @@ function scrollToSection(sectionId, shiftKey) {
     openCmdBar();
     renderMid();
     renderStruct();
-    // Also scroll to it
   }
-
-  // Switch to Mid tab if needed
   if (currentTab !== 'mid') switchTab('mid');
   const el = document.getElementById('sec-' + sectionId);
-  if (!el) return;
-  const board = document.getElementById('board');
-  if (!board) return;
-  const boardRect = board.getBoundingClientRect();
-  const surface = document.getElementById('board-surface');
-
-  // Measure section in unscaled surface coords
-  const elRect    = el.getBoundingClientRect();
-  const surfaceRect = surface.getBoundingClientRect();
-  // Center of element in unscaled surface space
-  const elCX = (elRect.left + elRect.width/2  - surfaceRect.left) / boardScale;
-  const elCY = (elRect.top  + elRect.height/2 - surfaceRect.top)  / boardScale;
-  const elH  = elRect.height / boardScale;  // unscaled element height
-
-  // Target scale: section fills ~65% of viewport height, clamped [0.8, 2.0]
-  const targetScale = Math.min(2.0, Math.max(0.8, boardRect.height * 0.65 / elH));
-
-  // Target pan at new scale: centre element in board viewport
-  const targetPanX = boardRect.width/2  - elCX * targetScale;
-  const targetPanY = boardRect.height/2 - elCY * targetScale;
-
-  // Smooth animate pan + scale together
-  const startX = panX, startY = panY, startS = boardScale;
-  const dx = targetPanX - startX, dy = targetPanY - startY, ds = targetScale - startS;
-  const dur = 360, t0 = performance.now();
-  function step(t) {
-    const p = Math.min(1, (t - t0) / dur);
-    const ease = p < 0.5 ? 2*p*p : -1+(4-2*p)*p;
-    panX = startX + dx * ease;
-    panY = startY + dy * ease;
-    boardScale = startS + ds * ease;
-    applyPan();
-    if (p < 1) requestAnimationFrame(step);
-  }
-  requestAnimationFrame(step);
+  if (el) el.scrollIntoView({ behavior:'smooth', block:'center' });
 }
 
 // ── Structure sidebar ─────────────────────────────────────────────────────────
@@ -2053,7 +1761,7 @@ function renderStruct() {
     const statusDotColor = status === 'verified' ? 'var(--c-state)'
                          : status === 'affected'  ? 'var(--c-warn)'
                          : 'var(--text-4)';
-    const firstKw = secs[0]?.keyword || 'STATE';
+    const firstKw = secs[0]?.keyword || 'DATA';
     const partColor = KW_COLOR[firstKw] || 'var(--text-4)';
 
     const toggle = document.createElement('div');
@@ -2460,20 +2168,17 @@ document.addEventListener('keydown', e => {
   }
 });
 
-// Board background click → close cmd bar + clear target (set once)
+// Doc background click → close cmd bar if click is on empty doc area
 document.addEventListener('DOMContentLoaded', () => {
-  const board = document.getElementById('board');
-  if (board) {
-    board.addEventListener('mouseup', e => {
-      if (panMoved) return;
-      if (suppressNextBgClose) { suppressNextBgClose = false; return; }
-      if (e.target.closest('.b-part-group,.cmd-bar')) return;
+  const wrap = document.getElementById('mid-doc-wrap');
+  if (wrap) {
+    wrap.addEventListener('click', e => {
+      if (e.target.closest('.doc-section,.doc-part-name,.doc-part-verify,.doc-anchor-item,.cmd-bar,.cmd-history')) return;
       closeCmdBar();
     });
   }
-  // cmd-bar clicks don't propagate to board
   const cmdBar = document.getElementById('cmd-bar');
-  if (cmdBar) cmdBar.addEventListener('mouseup', e => e.stopPropagation());
+  if (cmdBar) cmdBar.addEventListener('click', e => e.stopPropagation());
 });
 
 // ── Settings ──────────────────────────────────────────────────────────────────

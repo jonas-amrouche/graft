@@ -324,12 +324,14 @@ def _parse_section_block(raw: str, part_id: str, section_id: str) -> Optional[Mi
 
     body = clean_body('\n'.join(body_lines).strip())
     if keyword and body and len(body) > 20:
-        # Auto-generate marker if missing
         marker = code_marker or f"graft_{name}" if name else ""
+        final_part_id = ANCHOR_PART if keyword == 'ANCHOR' else part_id
+        final_lock = 'locked' if keyword == 'ANCHOR' else (lock_status or 'none')
         return MidSection(
             id=section_id, keyword=keyword, name=name,
-            intent_tag=intent_tag, part_id=part_id,
-            code_marker=marker, body=body
+            intent_tag=intent_tag, part_id=final_part_id,
+            code_marker=marker, body=body,
+            lock_status=final_lock, tags=tags
         )
     return None
 
@@ -592,36 +594,36 @@ def build_compile_prompt(
     if is_cloud:
         return f"""Produce a Mid document from the user prompt.
 
-Mid is a plain-English design layer between intent and code. It has four keywords:
-- STATE   — what the app holds in memory
-- TYPE    — the shape of one entity (fields, not code types)
-- STRUCTURE — what the user sees (layout, not CSS)
-- WHEN   — one user action and its exact result
+Mid is a plain-English design language between intent and code. Six keywords:
 
-Group sections into 2–4 named PARTS. Each part covers one coherent domain (e.g. "Tasks", "Auth", "Dashboard"). Use all four keywords as needed — a part typically has STATE or TYPE, a STRUCTURE, and at least one WHEN.
+- DATA      — what the app holds in memory and the shape of its entities
+- STRUCTURE — what the user sees: regions, screens, navigation skeleton
+- WHEN      — one user action and its exact result
+- ASSERT    — a rule that must always be true (validation, permissions, invariants)
+- SURFACE   — all text the user reads: labels, messages, empty states
+- ANCHOR    — a foundational axiom that never changes (use sparingly, 0-3 per app)
 
-Output format — reproduce exactly, no deviations:
+Group sections into 2–4 named PARTS by domain. ANCHOR sections go in a special PART: __anchors block if used.
+
+Output format:
 
 PART: PartName
 NAME: PartName
 STATUS: draft
 
 KEYWORD: Section Name
-MARKER: snake_case_marker
+MARKER: snake_case
 INTENT: one concise phrase
 ---
-Two to four sentences of plain prose. No code. No bullets.
+Two to five sentences of plain prose. No code. No bullets.
 
 ---PART---
 
-PART: AnotherPart
-...
-
 Rules:
-- KEYWORD must be one of: STATE, TYPE, STRUCTURE, WHEN — never invent other keywords
-- MARKER is always snake_case
-- Body is plain prose only — no markdown, no code, no bullets
-- Start output immediately with the first PART line, no preamble
+- KEYWORD must be one of the six above — never invent others
+- MARKER is snake_case only
+- Body is plain prose — no markdown, no bullets, no code
+- Start immediately with the first PART line, no preamble
 {verbosity_block}
 EXISTING MID:
 {existing_block}
@@ -634,28 +636,36 @@ USER PROMPT: {user_prompt}
 
 KEYWORDS — use all that apply:
 
-  STATE     — what the app holds in memory. Plain sentences, no code syntax.
-              Example: The app holds a list of articles. Each article starts as a draft.
+  DATA      — what the app holds in memory AND the shape of its entities. Plain sentences only.
+              Example: The app holds a list of tasks. Each task has a title, a status, and a due date.
 
-  TYPE      — the human-readable shape of one entity. No database types, no foreign keys.
-              Example: An article has a title, a body, a publication date, and a status (draft or published).
+  STRUCTURE — what the user sees. Regions, screens, inputs, buttons. No CSS, no colors, no interaction details.
+              Example: The page has a header with the app title, a task list in the center, and an add button at the bottom.
 
-  STRUCTURE — what the user sees. Regions, labels, inputs, buttons. No CSS, no colors, no interaction.
-              Example: The page has a header with the site title, a main feed of article cards, and a compose button.
+  WHEN      — one user action and its exact result. Trigger, what changes, what the user sees next. Three sentences max.
+              Example: When the user taps the add button, a form appears. The user fills in the title and confirms. The new task appears at the top of the list.
 
-  WHEN      — one user action and its result. Trigger, change, feedback. Three sentences max.
-              Example: When the user clicks Publish, the article status changes to published and it appears in the feed.
+  ASSERT    — a rule that must always be true. Validation, permissions, invariants.
+              Example: A task title cannot be empty. A user can only edit their own tasks.
+
+  SURFACE   — all text the user reads: labels, button names, empty states, error messages, placeholder text.
+              Example: The add button is labeled "New Task". The empty state reads "No tasks yet — add one above".
+
+  ANCHOR    — a foundational rule that never changes. Use 0-3 per app, only for genuine invariants.
+              Example: All data belongs to the authenticated user. Sessions expire after 30 days of inactivity.
 
 HARD RULES:
 - No bullet points. Prose only.
 - No code syntax, no type annotations, no database terms.
 - No "The user can..." — describe what happens, not what is possible.
 - Do not invent features the prompt did not ask for.
+- Do not use STATE or TYPE — use DATA instead.
 
 PARTS — group related sections under a shared PART_ID:
-- Every app should have 2–4 parts, not one. Never use "global" or "app" as a part name.
-- Good part names: "Articles", "User Auth", "Navigation", "Comments", "Tasks".
-- Data sections (STATE/TYPE) belong together in one part. Layout/actions can be a separate part or share a part with their data.
+- Every app needs 2–4 parts. Never use "global" or "app" as a part name.
+- Good part names: "Tasks", "Auth", "Dashboard", "Settings".
+- DATA and STRUCTURE for the same feature belong in the same part.
+- ANCHOR sections use PART_ID: __anchors (special reserved part).
 {verbosity_block}
 EXISTING MID:
 {existing_block}
@@ -664,24 +674,31 @@ EXISTING MID:
 OUTPUT FORMAT — copy this structure exactly:
 
 PART_ID: Tasks
-STATE: Task List
+DATA: Task List
 MARKER: task_list
-INTENT: holds the collection of tasks
+INTENT: holds all tasks and their state
 ---
-The app holds a list of tasks. Each task starts with no completion date.
+The app holds a list of tasks. Each task has a title, a completion status, and a creation date.
 
-PART_ID: Interface
+PART_ID: Tasks
+STRUCTURE: Task Screen
+MARKER: task_screen
+INTENT: the main screen showing all tasks
+---
+The screen has a top bar with the app name, a scrollable list of task cards, and a floating add button in the bottom right.
+
+PART_ID: Tasks
 WHEN: Complete Task
 MARKER: complete_task
-INTENT: user marks a task done
+INTENT: user marks a task as done
 ---
-When the user checks a task, its completion status becomes true and it moves to the done section.
+When the user taps the checkbox on a task card, the task status changes to complete. The card moves to the bottom of the list with a strikethrough style.
 
-CRITICAL RULES FOR THE FORMAT:
-- The line after PART_ID must be one of: STATE / TYPE / STRUCTURE / WHEN followed by a colon and a name.
-- NEVER write "STATE: WHEN" or "STATE: STRUCTURE" — STATE, TYPE, STRUCTURE, WHEN are keywords not names.
-- NEVER write "PART_ID: global" or "PART_ID: app" — always use a real descriptive name.
-- MARKER is always snake_case, nothing else.
+CRITICAL RULES:
+- The line after PART_ID must be one of: DATA / STRUCTURE / WHEN / ASSERT / SURFACE / ANCHOR.
+- NEVER use STATE or TYPE — use DATA instead.
+- NEVER write "PART_ID: global" or "PART_ID: app".
+- MARKER is always snake_case only.
 - Begin your output immediately with the first PART_ID line. No explanation before or after.
 
 USER PROMPT: {user_prompt}
@@ -755,7 +772,7 @@ def parse_compile_output(text: str, existing_sections: list[MidSection],
         if len(raw_blocks) <= 1:
             raw_blocks = re.split(r'(?m)^(?=(?:PART|NAME):\s)', stripped)
         if len(raw_blocks) <= 1:
-            raw_blocks = re.split(r'(?m)^(?=(?:STATE|TYPE|STRUCTURE|WHEN):\s)', stripped)
+            raw_blocks = re.split(r'(?m)^(?=(?:ANCHOR|STRUCTURE|DATA|WHEN|ASSERT|SURFACE|STATE|TYPE):\s)', stripped)
 
     def parse_block(block: str, fallback_part_id: str) -> Optional[MidSection]:
         nonlocal last_part_id
@@ -794,10 +811,12 @@ def parse_compile_output(text: str, existing_sections: list[MidSection],
                 continue
 
             # Keyword lines
-            if re.match(r'^(STATE|TYPE|STRUCTURE|WHEN):\s*', ls, re.IGNORECASE):
-                m = re.match(r'^(STATE|TYPE|STRUCTURE|WHEN):\s*(.*)', ls, re.IGNORECASE)
+            if re.match(r'^(ANCHOR|STRUCTURE|DATA|WHEN|ASSERT|SURFACE|STATE|TYPE):\s*', ls, re.IGNORECASE):
+                m = re.match(r'^(ANCHOR|STRUCTURE|DATA|WHEN|ASSERT|SURFACE|STATE|TYPE):\s*(.*)', ls, re.IGNORECASE)
                 if m:
-                    keyword = m.group(1).upper()
+                    kw = m.group(1).upper()
+                    if kw in ('STATE', 'TYPE'): kw = 'DATA'
+                    keyword = kw
                     name    = m.group(2).strip()
                 continue
 
@@ -825,7 +844,8 @@ def parse_compile_output(text: str, existing_sections: list[MidSection],
         if not body and intent:
             body = intent
 
-        pid = part_id or fallback_part_id or last_part_id or "global"
+        _pid = part_id or fallback_part_id or last_part_id or "global"
+        pid = ANCHOR_PART if keyword == 'ANCHOR' else _pid
 
         # Derive name/marker
         if not name and marker:
@@ -842,7 +862,9 @@ def parse_compile_output(text: str, existing_sections: list[MidSection],
             return MidSection(
                 id=f"new_{sec_counter[0]}", keyword=keyword, name=name,
                 intent_tag=intent, part_id=pid,
-                code_marker=marker, body=body
+                code_marker=marker, body=body,
+                lock_status='locked' if keyword == 'ANCHOR' else 'none',
+                tags=[]
             )
         return None
 
@@ -862,13 +884,13 @@ def parse_compile_output(text: str, existing_sections: list[MidSection],
             last_part_id = block_part
 
         # Split on any keyword line within block (handles multiple sections per block)
-        sub_blocks = re.split(r'(?m)(?:^|(?<=\n))(?=(?:STATE|TYPE|STRUCTURE|WHEN):\s)', block)
+        sub_blocks = re.split(r'(?m)(?:^|(?<=\n))(?=(?:ANCHOR|STRUCTURE|DATA|WHEN|ASSERT|SURFACE|STATE|TYPE):\s)', block)
         for sub in sub_blocks:
             sub = sub.strip()
             if not sub:
                 continue
             # Skip pure header blocks (no keyword)
-            if not re.search(r'^(STATE|TYPE|STRUCTURE|WHEN):\s', sub, re.MULTILINE | re.IGNORECASE):
+            if not re.search(r'^(ANCHOR|STRUCTURE|DATA|WHEN|ASSERT|SURFACE|STATE|TYPE):\s', sub, re.MULTILINE | re.IGNORECASE):
                 # But update last_part_id from any PART/NAME lines
                 pm2 = part_header_re.search(sub)
                 if pm2:
@@ -886,7 +908,7 @@ def parse_compile_output(text: str, existing_sections: list[MidSection],
             seg = seg.strip()
             if not seg or len(seg) < 10: continue
             kw = 'STATE'
-            for k in ('WHEN', 'STRUCTURE', 'TYPE'):
+            for k in ('WHEN', 'ASSERT', 'STRUCTURE', 'DATA'):
                 if re.search(rf'\b{k}\b', seg, re.IGNORECASE): kw = k; break
             first_line = seg.split('\n')[0].strip()
             nm = re.sub(r'[^\w]', '_', first_line[:28].lower()).strip('_') or f"section_{i}"
@@ -940,9 +962,10 @@ def parse_compile_output(text: str, existing_sections: list[MidSection],
     if len(part_ids) == 1 and next(iter(part_ids)).lower().strip() in BLOB_NAMES:
         data_name = next((s.name.split()[0] for s in merged_sections if s.keyword in ('STATE', 'TYPE')), 'Data')
         for s in merged_sections:
-            if s.keyword in ('STATE', 'TYPE'): s.part_id = data_name
+            if s.keyword in ('DATA', 'STATE', 'TYPE'): s.part_id = data_name
             elif s.keyword == 'STRUCTURE':     s.part_id = 'Layout'
-            elif s.keyword == 'WHEN':          s.part_id = 'Actions'
+            elif s.keyword in ('WHEN', 'ASSERT'): s.part_id = 'Actions'
+            elif s.keyword == 'SURFACE':       s.part_id = 'Content'
 
     merged_parts = sync_parts(existing_parts, merged_sections)
 
