@@ -12,7 +12,7 @@ Key changes from v1:
 - Migration: old owner-based .mid files load as a single unnamed part
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Request,  FastAPI, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse, PlainTextResponse
 from pydantic import BaseModel
 from typing import Optional
@@ -428,7 +428,9 @@ def sync_parts(existing_parts: list[MidPart], sections: list[MidSection]) -> lis
     existing_ids = {p.id for p in result}
     for pid in part_ids_with_sections:
         if pid not in existing_ids:
-            result.append(MidPart(id=pid, name=pid, status="draft"))
+            # Convert slug → human name: "article_data" → "Article Data"
+            human = re.sub(r'[_\-]+', ' ', pid).title()
+            result.append(MidPart(id=pid, name=human, status="draft"))
     return result
 
 def watchdog_check(parts: list[MidPart], new_sections: list[MidSection],
@@ -509,92 +511,178 @@ def build_compile_prompt(
     target_sections: list[MidSection],
     all_sections: list[MidSection],
     all_parts: list[MidPart],
-    verbosity: str = "moderate"
+    verbosity: str = "moderate",
+    is_cloud: bool = False
 ) -> str:
 
-    # Existing Mid summary (read-only context)
-    existing_lines = []
+    # Context strategy: targeted compile gets only what it needs, not the whole doc
+    # Global compile: part names + section names only (no bodies)
+    # Targeted part: other parts as names only + target part full sections
+    # Targeted sections: other parts as names only + target sections with bodies
+
+    # Other parts — always just names, never bodies (saves tokens)
+    other_parts_lines = []
     for part in all_parts:
+        if target_part and part.id == target_part.id:
+            continue
         part_secs = sections_for_part(part.id, all_sections)
         if not part_secs:
             continue
-        existing_lines.append(f"  PART [{part.name}] status:{part.status}")
-        for s in part_secs:
-            existing_lines.append(f"    {s.keyword}: {s.name} — {s.intent_tag}")
-    existing_block = "\n".join(existing_lines) if existing_lines else "  (none)"
+        status_tag = " [verified]" if part.status == "verified" else ""
+        other_parts_lines.append(f"  {part.name}{status_tag}: " +
+            ", ".join(f"{s.keyword} {s.name}" for s in part_secs))
+    other_parts_block = "\n".join(other_parts_lines) if other_parts_lines else "  (none)"
 
-    # Verified parts constraint
-    verified_lines = []
-    for part in all_parts:
-        if part.status == "verified" and part.snapshots:
-            if target_part and part.id == target_part.id:
-                continue  # target part is allowed to change
-            verified_lines.append(f"  [{part.name}]")
-            for s in sections_for_part(part.id, all_sections):
-                verified_lines.append(f"    {s.keyword}: {s.name} — {s.intent_tag}")
-    verified_block = "\n".join(verified_lines) if verified_lines else ""
+    # Verified constraint — names only, no bodies
+    verified_names = [p.name for p in all_parts
+                      if p.status == "verified" and p.snapshots
+                      and (not target_part or p.id != target_part.id)]
+    verified_constraint = ""
+    if verified_names:
+        verified_constraint = f"\nDO NOT modify verified parts: {', '.join(verified_names)}\n"
 
-    # Target context
+    # Target block — full bodies only for what's being changed
     target_block = ""
     if target_part:
         target_secs = sections_for_part(target_part.id, all_sections)
         if target_sections:
-            # Specific sections targeted
             targeted = [s for s in target_secs if s.id in {t.id for t in target_sections}]
-            target_block = f"\nFOCUS: Modify the following sections in part [{target_part.name}]:\n"
+            target_block = f"\nMODIFY these sections in [{target_part.name}]:\n"
             for s in targeted:
-                target_block += f"  {s.keyword}: {s.name}\n  ---\n  {s.body}\n\n"
-            target_block += "You may also modify other sections in this part or related sections if the prompt requires it."
+                target_block += f"\n{s.keyword}: {s.name}\nINTENT: {s.intent_tag}\n---\n{s.body}\n"
+            target_block += "\nAdd or adjust other sections in this part only if the prompt requires it."
         else:
-            target_block = f"\nFOCUS: Modify part [{target_part.name}]. Its current sections:\n"
+            target_block = f"\nMODIFY part [{target_part.name}]. Current sections:\n"
             for s in target_secs:
                 target_block += f"  {s.keyword}: {s.name} — {s.intent_tag}\n"
-            target_block += "\nYou may also touch other parts if the change logically requires it."
     else:
-        target_block = "\nThis is a global prompt. Create a new part or modify whatever sections best address it."
+        target_block = "\nCreate or update whatever parts and sections best address the prompt."
 
+    existing_block = other_parts_block
     verbosity_hint = VERBOSITY_HINTS.get(verbosity, VERBOSITY_HINTS["moderate"])
     verbosity_block = f"\n{verbosity_hint}\n" if verbosity_hint else ""
 
-    verified_constraint = ""
-    if verified_block:
-        verified_constraint = (
-            f"\nVERIFIED PARTS — approved by the human. Do not redefine, contradict, "
-            f"or modify these unless the prompt explicitly requires it:\n{verified_block}\n"
-        )
+    # Cloud: slim prompt, smart context (existing_block = compact other_parts_block)
+    # Local: full scaffolded prompt with restored legacy existing_block format
+    if not is_cloud:
+        # Restore full existing_block format that qwen expects
+        legacy_lines = []
+        for part in all_parts:
+            part_secs = sections_for_part(part.id, all_sections)
+            if not part_secs: continue
+            legacy_lines.append(f"  PART [{part.name}] status:{part.status}")
+            for s in part_secs:
+                legacy_lines.append(f"    {s.keyword}: {s.name} — {s.intent_tag}")
+        existing_block = "\n".join(legacy_lines) if legacy_lines else "  (none)"
 
-    return f"""You are a Mid Language compiler. Mid is the human-readable specification layer between intent and code.
+        # Restore full verified constraint with bodies
+        v_lines = []
+        for part in all_parts:
+            if part.status == "verified" and part.snapshots:
+                if target_part and part.id == target_part.id: continue
+                v_lines.append(f"  [{part.name}]")
+                for s in sections_for_part(part.id, all_sections):
+                    v_lines.append(f"    {s.keyword}: {s.name} — {s.intent_tag}")
+        if v_lines:
+            verified_constraint = (
+                f"\nVERIFIED PARTS — approved by the human. Do not redefine, contradict, "
+                f"or modify these unless the prompt explicitly requires it:\n" + "\n".join(v_lines) + "\n"
+            )
 
-KEYWORDS:
-STATE: data in memory — names, types, initial values. snake_case. No behavior.
-TYPE: shape of one entity — fields and types. Only when STATE holds a collection.
-STRUCTURE: what the user sees — layout, elements, labels. No interaction, no CSS.
-WHEN: exactly one user action — trigger, precondition, state changes, feedback.
+    if is_cloud:
+        return f"""Produce a Mid document from the user prompt.
 
-STYLE: Declarative only. No narrative. No "Now the user can...". No summaries. Every sentence is a fact.
-NEVER include: colors, library names, CSS classes, API calls, file paths.
+Mid is a plain-English design layer between intent and code. It has four keywords:
+- STATE   — what the app holds in memory
+- TYPE    — the shape of one entity (fields, not code types)
+- STRUCTURE — what the user sees (layout, not CSS)
+- WHEN   — one user action and its exact result
+
+Group sections into 2–4 named PARTS. Each part covers one coherent domain (e.g. "Tasks", "Auth", "Dashboard"). Use all four keywords as needed — a part typically has STATE or TYPE, a STRUCTURE, and at least one WHEN.
+
+Output format — reproduce exactly, no deviations:
+
+PART: PartName
+NAME: PartName
+STATUS: draft
+
+KEYWORD: Section Name
+MARKER: snake_case_marker
+INTENT: one concise phrase
+---
+Two to four sentences of plain prose. No code. No bullets.
+
+---PART---
+
+PART: AnotherPart
+...
+
+Rules:
+- KEYWORD must be one of: STATE, TYPE, STRUCTURE, WHEN — never invent other keywords
+- MARKER is always snake_case
+- Body is plain prose only — no markdown, no code, no bullets
+- Start output immediately with the first PART line, no preamble
 {verbosity_block}
-EXISTING PROJECT MID:
+EXISTING MID:
 {existing_block}
 {verified_constraint}{target_block}
 
-OUTPUT FORMAT — output ONLY sections that are new or changed. One block per section:
+USER PROMPT: {user_prompt}
+"""
+    else:
+        return f"""You are a Mid compiler. Mid is a plain-English design language: the layer between a user idea and running code.
 
-PART_ID: <short_part_label>
-STATE: section_name
-MARKER: graft_section_name
-INTENT: one phrase describing this section
+KEYWORDS — use all that apply:
+
+  STATE     — what the app holds in memory. Plain sentences, no code syntax.
+              Example: The app holds a list of articles. Each article starts as a draft.
+
+  TYPE      — the human-readable shape of one entity. No database types, no foreign keys.
+              Example: An article has a title, a body, a publication date, and a status (draft or published).
+
+  STRUCTURE — what the user sees. Regions, labels, inputs, buttons. No CSS, no colors, no interaction.
+              Example: The page has a header with the site title, a main feed of article cards, and a compose button.
+
+  WHEN      — one user action and its result. Trigger, change, feedback. Three sentences max.
+              Example: When the user clicks Publish, the article status changes to published and it appears in the feed.
+
+HARD RULES:
+- No bullet points. Prose only.
+- No code syntax, no type annotations, no database terms.
+- No "The user can..." — describe what happens, not what is possible.
+- Do not invent features the prompt did not ask for.
+
+PARTS — group related sections under a shared PART_ID:
+- Every app should have 2–4 parts, not one. Never use "global" or "app" as a part name.
+- Good part names: "Articles", "User Auth", "Navigation", "Comments", "Tasks".
+- Data sections (STATE/TYPE) belong together in one part. Layout/actions can be a separate part or share a part with their data.
+{verbosity_block}
+EXISTING MID:
+{existing_block}
+{verified_constraint}{target_block}
+
+OUTPUT FORMAT — copy this structure exactly:
+
+PART_ID: Tasks
+STATE: Task List
+MARKER: task_list
+INTENT: holds the collection of tasks
 ---
-2 to 4 declarative sentences. No bullets. No code.
+The app holds a list of tasks. Each task starts with no completion date.
 
-Use STATE / TYPE / STRUCTURE / WHEN as the keyword line (not "KEYWORD:").
-PART_ID is a short label like "data", "ui", "actions" — not a number.
-If you are creating a new part, use a descriptive PART_ID.
-If you are modifying an existing section, keep its PART_ID unchanged.
+PART_ID: Interface
+WHEN: Complete Task
+MARKER: complete_task
+INTENT: user marks a task done
+---
+When the user checks a task, its completion status becomes true and it moves to the done section.
 
-To remove a section: REMOVE: section_name
-
-Blank line between sections. No preamble. No explanation. Start immediately.
+CRITICAL RULES FOR THE FORMAT:
+- The line after PART_ID must be one of: STATE / TYPE / STRUCTURE / WHEN followed by a colon and a name.
+- NEVER write "STATE: WHEN" or "STATE: STRUCTURE" — STATE, TYPE, STRUCTURE, WHEN are keywords not names.
+- NEVER write "PART_ID: global" or "PART_ID: app" — always use a real descriptive name.
+- MARKER is always snake_case, nothing else.
+- Begin your output immediately with the first PART_ID line. No explanation before or after.
 
 USER PROMPT: {user_prompt}
 """
@@ -605,43 +693,31 @@ def build_surgical_code_prompt(section: MidSection, all_sections: list[MidSectio
     part_secs = sections_for_part(section.part_id, all_sections)
     context = "\n".join(f"  {s.keyword}: {s.name} — {s.intent_tag}"
                         for s in part_secs if s.id != section.id)
-    return f"""You are a code compiler making a surgical update to one section of a web app.
+    return f"""Replace ONLY the code block below with a new implementation matching the Mid spec.
+Output the block only — no explanation, no markdown fences.
 
-Replace ONLY the code block marked // [graft:{section.name}] ... // [/graft:{section.name}]
-
-CURRENT BLOCK TO REPLACE:
+CURRENT:
 {current_block}
 
-MID SPECIFICATION FOR THIS SECTION:
+MID:
 {section.keyword}: {section.name}
 INTENT: {section.intent_tag}
 ---
 {section.body}
 
-RELATED SECTIONS (context only, do not change their code):
+CONTEXT (read-only):
 {context}
-
-OUTPUT: The replacement code block only, starting with // [graft:{section.name}] and ending with // [/graft:{section.name}].
-No explanation. No markdown fences.
 """
 
 def mid_to_code_prompt(mid: str) -> str:
-    return f"""You are a code compiler. Read the Mid document and produce a single complete working HTML file.
+    return f"""Produce a single complete working HTML file from this Mid document.
 
-Rules:
-- Output ONLY the HTML. Nothing before <!DOCTYPE html>. No markdown fences.
-- All CSS inside <style> in <head>. All JS inside <script> before </body>.
-- For each WHEN section, wrap the implementation:
-    // [graft:section_name]
-    ... code ...
-    // [/graft:section_name]
-- Match STRUCTURE exactly. Use STATE and TYPE for the data model.
-- Dark background preferred unless Mid says otherwise.
+- Output ONLY HTML. No markdown fences. Nothing before <!DOCTYPE html>.
+- CSS in <style> in <head>. JS in <script> before </body>.
+- Wrap each WHEN implementation: // [graft:marker] ... // [/graft:marker]
+- Implement STRUCTURE exactly. Use STATE/TYPE for the data model.
 
-Mid document:
 {mid}
-
-Write the complete HTML file now:
 """
 
 # ── Parse compile output ──────────────────────────────────────────────────────
@@ -649,152 +725,229 @@ Write the complete HTML file now:
 def parse_compile_output(text: str, existing_sections: list[MidSection],
                           existing_parts: list[MidPart]) -> tuple[list[MidSection], list[MidPart], list[str]]:
     """
-    Parse compiler output into sections. Tolerates several model output variations:
-    - Correct block format: PART_ID: x\\nKEYWORD: name\\nINTENT: ...\\n---\\nbody
-    - Flat inline: PART_ID: 1 KEYWORD: STATE MARKER: x INTENT: y --- body
-    - No PART_ID at all (assigns to 'global')
-    - Old format with OWNER: field
-    Returns (merged_sections, merged_parts, removed_section_names).
+    Parse compiler output into sections.
+    Tolerant of:
+    - PART: or PART_ID: or NAME: headers (all treated as part name)
+    - Sections with no body (STATE/TYPE/STRUCTURE often have only INTENT)
+    - --- with or without trailing blank line
+    - Multiple sections per block without separating PART headers
     """
     new_or_changed: list[MidSection] = []
     removed_names: list[str] = []
 
-    # Normalise: split inline PART_ID/KEYWORD tokens onto separate lines
-    # e.g. "PART_ID: 1 KEYWORD: STATE" → "PART_ID: 1\nKEYWORD: STATE"
-    def normalise(t: str) -> str:
-        tokens = r'(PART_ID|PART_NAME|KEYWORD|MARKER|INTENT|OWNER|STATE|TYPE|STRUCTURE|WHEN|REMOVE)'
-        # Insert newline before each known token when it appears mid-line
-        t = re.sub(rf'\s+({tokens}:)', r'\n\1', t)
-        return t
+    # ── Step 1: extract part name from any header block before first keyword ──
+    # Accept PART:, PART_ID:, NAME: as part identifiers
+    last_part_id = "global"
+    part_header_re = re.compile(
+        r'(?m)^(?:PART(?:_ID)?|NAME):\s*(.+)$', re.IGNORECASE
+    )
 
-    text = normalise(text)
+    sec_counter = [0]
 
-    # Extract REMOVE directives
-    for line in text.split('\n'):
-        m = re.match(r'^REMOVE:\s*(\S+)', line.strip())
-        if m:
-            removed_names.append(m.group(1))
+    # ── Step 2: split into section blocks ────────────────────────────────────
+    # Priority: ---PART--- separators (Claude output), then PART_ID:, then PART:/NAME:, then keywords
+    stripped = text.strip()
+    if re.search(r'---PART---', stripped):
+        # Claude-style: pre-split on ---PART--- then parse each part block
+        raw_blocks = re.split(r'\n?---PART---\n?', stripped)
+    else:
+        raw_blocks = re.split(r'(?m)^(?=PART_ID:\s)', stripped)
+        if len(raw_blocks) <= 1:
+            raw_blocks = re.split(r'(?m)^(?=(?:PART|NAME):\s)', stripped)
+        if len(raw_blocks) <= 1:
+            raw_blocks = re.split(r'(?m)^(?=(?:STATE|TYPE|STRUCTURE|WHEN):\s)', stripped)
 
-    # Split into per-section blocks — split on PART_ID: or on bare keyword lines
-    # that start a new section (STATE/TYPE/STRUCTURE/WHEN at line start)
-    blocks = re.split(r'\n(?=(?:PART_ID:|PART_NAME:))', text.strip())
-    if len(blocks) <= 1:
-        # No PART_ID markers — split on keyword lines directly
-        blocks = re.split(r'\n(?=(?:STATE|TYPE|STRUCTURE|WHEN):\s)', text.strip())
-
-    for i, block in enumerate(blocks):
+    def parse_block(block: str, fallback_part_id: str) -> Optional[MidSection]:
+        nonlocal last_part_id
         block = block.strip()
-        if not block or block.startswith('REMOVE:'):
-            continue
+        if not block:
+            return None
 
-        part_id_out = part_name_out = ""
-        keyword = name = intent_tag = code_marker = ""
-        body_lines = []
+        part_id = ""
+        keyword = name = intent = marker = ""
+        body_lines: list[str] = []
         in_body = False
+        saw_separator = False
 
         for line in block.split('\n'):
+            ls = line.strip()
+
             if in_body:
+                # Stop collecting body if we hit another keyword (malformed block)
+                if re.match(r'^(STATE|TYPE|STRUCTURE|WHEN|PART(?:_ID)?|NAME|MARKER|INTENT|STATUS):\s', ls, re.IGNORECASE):
+                    break
                 body_lines.append(line)
                 continue
-            ls = line.strip()
-            if ls.startswith('PART_ID:'):
-                part_id_out = ls[8:].strip()
-            elif ls.startswith('PART_NAME:'):
-                part_name_out = ls[10:].strip()
-            elif re.match(r'^(STATE|TYPE|STRUCTURE|WHEN):\s', ls, re.IGNORECASE):
-                m2 = re.match(r'^(STATE|TYPE|STRUCTURE|WHEN):\s*(.*)', ls, re.IGNORECASE)
-                if m2:
-                    keyword = m2.group(1).upper()
-                    name = m2.group(2).strip()
-            elif ls.startswith('KEYWORD:'):
-                # Model used "KEYWORD: STATE" instead of "STATE: name"
-                kw_val = ls[8:].strip().upper()
-                if kw_val in ('STATE', 'TYPE', 'STRUCTURE', 'WHEN'):
-                    keyword = kw_val
-            elif ls.startswith('MARKER:'):
-                code_marker = ls[7:].strip()
-            elif ls.startswith('INTENT:'):
-                intent_tag = ls[7:].strip()
-            elif ls.startswith('OWNER:'):
-                part_id_out = part_id_out or re.sub(r'\W+', '_', ls[6:].strip().lower())
-            elif ls == '---':
+
+            # Part / name headers
+            if re.match(r'^(?:PART(?:_ID)?|NAME):\s', ls, re.IGNORECASE):
+                m = re.match(r'^(?:PART(?:_ID)?|NAME):\s*(.*)', ls, re.IGNORECASE)
+                if m:
+                    pname = m.group(1).strip()
+                    if pname:
+                        part_id = pname
+                        last_part_id = pname
+                continue  # don't treat as body
+
+            # STATUS / other metadata — skip silently
+            if re.match(r'^STATUS:\s', ls, re.IGNORECASE):
+                continue
+
+            # Keyword lines
+            if re.match(r'^(STATE|TYPE|STRUCTURE|WHEN):\s*', ls, re.IGNORECASE):
+                m = re.match(r'^(STATE|TYPE|STRUCTURE|WHEN):\s*(.*)', ls, re.IGNORECASE)
+                if m:
+                    keyword = m.group(1).upper()
+                    name    = m.group(2).strip()
+                continue
+
+            if ls.startswith('MARKER:'):
+                marker = ls[7:].strip(); continue
+            if ls.startswith('INTENT:'):
+                intent = ls[7:].strip(); continue
+
+            # Section separator — start body (even if nothing follows)
+            if re.match(r'^-{3,}$', ls):
                 in_body = True
-            elif in_body is False and keyword and ls and not ls.startswith('#'):
-                # Loose body line before --- separator
+                saw_separator = True
+                continue
+
+            # Lines before --- that aren't headers → loose body
+            if keyword and ls and not ls.startswith('#'):
                 body_lines.append(line)
 
-        body = clean_body('\n'.join(body_lines).strip())
-        if keyword and body and len(body) > 20:
-            if not code_marker and name:
-                code_marker = "graft_" + re.sub(r'\W+', '_', name.lower())
-            pid = part_id_out or part_name_out or "global"
-            new_or_changed.append(MidSection(
-                id=f"new_{i}", keyword=keyword, name=name,
-                intent_tag=intent_tag, part_id=pid,
-                code_marker=code_marker, body=body
-            ))
+        raw_body = '\n'.join(body_lines).strip()
+        body = clean_body(raw_body) if raw_body else ""
+        if not body and body_lines:
+            body = ' '.join(l.lstrip('-•* ').strip() for l in body_lines if l.strip())
 
-    # Merge: start with existing, apply changes
-    # Index existing by name for update matching
-    existing_by_name = {s.name: s for s in existing_sections}
-    result_map: dict[str, MidSection] = dict(existing_by_name)
+        # Fall back to intent as body when body is empty (common for STATE/TYPE/STRUCTURE)
+        if not body and intent:
+            body = intent
 
-    # Remove
+        pid = part_id or fallback_part_id or last_part_id or "global"
+
+        # Derive name/marker
+        if not name and marker:
+            name = marker.replace('_', ' ').title()
+        if not name and keyword:
+            sec_counter[0] += 1
+            name = f"{keyword.title()} {sec_counter[0]}"
+        if not marker and name:
+            marker = re.sub(r'\W+', '_', name.lower()).strip('_')
+
+        # Accept section as long as we have keyword + (body or intent)
+        if keyword and (body or intent):
+            body = body or intent
+            return MidSection(
+                id=f"new_{sec_counter[0]}", keyword=keyword, name=name,
+                intent_tag=intent, part_id=pid,
+                code_marker=marker, body=body
+            )
+        return None
+
+    for block in raw_blocks:
+        block = block.strip()
+        if not block:
+            continue
+        if block.startswith('REMOVE:'):
+            m = re.match(r'^REMOVE:\s*(\S+)', block)
+            if m: removed_names.append(m.group(1))
+            continue
+
+        # Extract part name from block header if present
+        pm = part_header_re.match(block.split('\n')[0].strip())
+        block_part = pm.group(1).strip() if pm else ""
+        if block_part:
+            last_part_id = block_part
+
+        # Split on any keyword line within block (handles multiple sections per block)
+        sub_blocks = re.split(r'(?m)(?:^|(?<=\n))(?=(?:STATE|TYPE|STRUCTURE|WHEN):\s)', block)
+        for sub in sub_blocks:
+            sub = sub.strip()
+            if not sub:
+                continue
+            # Skip pure header blocks (no keyword)
+            if not re.search(r'^(STATE|TYPE|STRUCTURE|WHEN):\s', sub, re.MULTILINE | re.IGNORECASE):
+                # But update last_part_id from any PART/NAME lines
+                pm2 = part_header_re.search(sub)
+                if pm2:
+                    last_part_id = pm2.group(1).strip()
+                continue
+            sec_counter[0] += 1
+            s = parse_block(sub, last_part_id)
+            if s:
+                new_or_changed.append(s)
+
+    # Last-resort fallback for completely unstructured output
+    if not new_or_changed:
+        segments = re.split(r'\n-{3,}\n', text)
+        for i, seg in enumerate(segments):
+            seg = seg.strip()
+            if not seg or len(seg) < 10: continue
+            kw = 'STATE'
+            for k in ('WHEN', 'STRUCTURE', 'TYPE'):
+                if re.search(rf'\b{k}\b', seg, re.IGNORECASE): kw = k; break
+            first_line = seg.split('\n')[0].strip()
+            nm = re.sub(r'[^\w]', '_', first_line[:28].lower()).strip('_') or f"section_{i}"
+            body = clean_body(seg) or seg[:200]
+            if body and len(body) > 10:
+                new_or_changed.append(MidSection(
+                    id=f"fb_{i}", keyword=kw, name=nm,
+                    intent_tag='', part_id=last_part_id,
+                    code_marker=f"graft_{nm}", body=body
+                ))
+
+    # ── Merge with existing ───────────────────────────────────────────────────
+    # Key on (keyword, name) so "STATE: Task Board" and "STRUCTURE: Task Board"
+    # are treated as distinct sections and don't overwrite each other.
+    def sec_key(s: MidSection) -> str:
+        return f"{s.keyword}::{s.name}"
+
+    existing_by_key = {sec_key(s): s for s in existing_sections}
+    result_map: dict[str, MidSection] = dict(existing_by_key)
+
     for rname in removed_names:
-        result_map.pop(rname, None)
+        # Support removal by name alone (backwards compat) or full key
+        keys_to_remove = [k for k in result_map if rname in k]
+        for k in keys_to_remove:
+            result_map.pop(k, None)
 
-    # Add / update
     for s in new_or_changed:
-        if s.name in result_map:
-            # Update — preserve id, update fields
-            old = result_map[s.name]
-            result_map[s.name] = MidSection(
+        key = sec_key(s)
+        if key in result_map:
+            old = result_map[key]
+            result_map[key] = MidSection(
                 id=old.id, keyword=s.keyword, name=s.name,
                 intent_tag=s.intent_tag, part_id=s.part_id or old.part_id,
                 code_marker=s.code_marker or old.code_marker, body=s.body
             )
         else:
-            # New section
             new_id = f"s{len(result_map)}"
-            result_map[s.name] = MidSection(
+            result_map[key] = MidSection(
                 id=new_id, keyword=s.keyword, name=s.name,
                 intent_tag=s.intent_tag, part_id=s.part_id or "global",
                 code_marker=s.code_marker, body=s.body
             )
 
     merged_sections = list(result_map.values())
-
-    # Re-index IDs
     for i, s in enumerate(merged_sections):
         s.id = f"s{i}"
 
-    # Sync parts
-    merged_parts = sync_parts(existing_parts, merged_sections)
+    # Auto-split blob parts
+    BLOB_NAMES = {'global', 'app', 'untitled', 'main', 'default', '1', ''}
+    part_ids = {s.part_id for s in merged_sections}
+    if len(part_ids) == 1 and next(iter(part_ids)).lower().strip() in BLOB_NAMES:
+        data_name = next((s.name.split()[0] for s in merged_sections if s.keyword in ('STATE', 'TYPE')), 'Data')
+        for s in merged_sections:
+            if s.keyword in ('STATE', 'TYPE'): s.part_id = data_name
+            elif s.keyword == 'STRUCTURE':     s.part_id = 'Layout'
+            elif s.keyword == 'WHEN':          s.part_id = 'Actions'
 
-    # Ensure new part_ids have a meaningful name
-    # For numeric ids like "1", "2" — derive name from first section's intent
-    part_ids_with_name = {p.id for p in merged_parts}
-    # Build a name hint per part_id from sections
-    part_name_hints: dict[str, str] = {}
-    for s in merged_sections:
-        if s.part_id not in part_name_hints and s.intent_tag:
-            # Use first few words of intent as part name
-            words = s.intent_tag.strip().split()[:5]
-            part_name_hints[s.part_id] = ' '.join(words)
-    for s in merged_sections:
-        if s.part_id not in part_ids_with_name:
-            name_hint = part_name_hints.get(s.part_id, s.part_id)
-            # Sanitize numeric-only IDs
-            pid = s.part_id
-            if pid.isdigit():
-                pid = f"part_{pid}"
-                s.part_id = pid
-            merged_parts.append(MidPart(id=pid, name=name_hint))
-            part_ids_with_name.add(pid)
+    merged_parts = sync_parts(existing_parts, merged_sections)
 
     return merged_sections, merged_parts, removed_names
 
-# ── Streaming ─────────────────────────────────────────────────────────────────
 
 async def stream_ollama(cfg: dict, prompt: str):
     url = cfg.get("ollama_url", "http://localhost:11434")
@@ -931,19 +1084,27 @@ async def root():
     })
 
 @app.post("/compile/mid")
-async def compile_mid(req: CompileRequest):
+async def compile_mid(req: CompileRequest, request: Request):
     cfg = load_config()
-    role_cfg = cfg["intent_compiler"]
+    role_cfg = dict(cfg["intent_compiler"])
     verbosity = cfg.get("mid_verbosity", "moderate")
+
+    # Session override from statusbar pill — does not modify saved config
+    override = request.headers.get("X-Model-Override")
+    if override == "ollama":
+        role_cfg["source"] = "ollama"
+    elif override == "anthropic":
+        role_cfg["source"] = "anthropic"
 
     target_part = next((p for p in req.parts if p.id == req.target_part_id), None) \
                   if req.target_part_id else None
     target_sections = [s for s in req.existing_sections
                        if s.id in set(req.target_section_ids)]
 
+    is_cloud = role_cfg.get("source") == "anthropic"
     prompt = build_compile_prompt(
         req.prompt, target_part, target_sections,
-        req.existing_sections, req.parts, verbosity
+        req.existing_sections, req.parts, verbosity, is_cloud=is_cloud
     )
 
     async def generate():
@@ -994,8 +1155,11 @@ async def compile_mid(req: CompileRequest):
                     append_history(req.project_name, entry)
 
                     yield f"data: {json.dumps({'saved': True, 'sections': [s.dict() for s in merged_sections], 'parts': [p.dict() for p in merged_parts], 'affected': affected, 'history_entry': entry.dict()})}\n\n"
-            except Exception:
-                pass
+            except Exception as e:
+                import traceback
+                print("=== GENERATE ERROR ===")
+                traceback.print_exc()
+                yield f"data: {json.dumps({'error': str(e) or 'Internal error during parse/save'})}\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
@@ -1052,6 +1216,12 @@ async def verify_part(req: VerifyPartRequest):
     part = next((p for p in req.parts if p.id == req.part_id), None)
     if not part:
         raise HTTPException(status_code=404, detail="Part not found")
+    # If the incoming part already has status "draft", this is an unverify request
+    if part.status == "draft":
+        # Just save as-is (caller already set status to draft)
+        _save_parts_meta(req.project_name, req.parts)
+        return {"saved": True, "parts": [p.dict() for p in req.parts]}
+    # Normal verify: snapshot + mark verified
     secs = sections_for_part(req.part_id, req.sections)
     part.snapshots.append(MidPartSnapshot(
         timestamp=datetime.now(timezone.utc).isoformat(),
@@ -1134,8 +1304,14 @@ async def serve_output_file(name: str, filename: str):
 
 @app.get("/projects")
 async def list_projects():
-    files = [f.replace(".json", "") for f in os.listdir(PROJECTS_DIR)
-             if f.endswith(".json") and not f.endswith(".parts.json")]
+    files = []
+    for f in os.listdir(PROJECTS_DIR):
+        if not f.endswith(".json"):
+            continue
+        stem = f[:-5]
+        if "." in stem:
+            continue
+        files.append(stem)
     return {"projects": sorted(files)}
 
 @app.get("/projects/{name}")

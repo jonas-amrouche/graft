@@ -1,0 +1,20 @@
+[
+  {
+    "id": "Interface",
+    "name": "Interface",
+    "status": "draft",
+    "snapshots": []
+  },
+  {
+    "id": "BudgetTracker",
+    "name": "Budgettracker",
+    "status": "draft",
+    "snapshots": []
+  },
+  {
+    "id": "Actions",
+    "name": "Actions",
+    "status": "draft",
+    "snapshots": []
+  }
+]

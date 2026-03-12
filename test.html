@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Article List</title>
+    <style>
+        body {
+            background-color: #333;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        header {
+            background-color: #444;
+            padding: 10px 20px;
+            text-align: center;
+        }
+        .main-feed {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            padding: 20px;
+        }
+        .article-card {
+            background-color: #555;
+            border: 1px solid #666;
+            border-radius: 5px;
+            margin: 10px;
+            padding: 15px;
+            width: 300px;
+            text-align: center;
+        }
+        .article-card button {
+            background-color: #666;
+            border: none;
+            color: #fff;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+        .article-detail {
+            background-color: #555;
+            margin: 20px;
+            padding: 20px;
+        }
+        .comment-section {
+            margin-top: 20px;
+        }
+        .comment-section input, .comment-section textarea {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        .comment-section button {
+            background-color: #666;
+            border: none;
+            color: #fff;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Article List</h1>
+    </header>
+    <div class="main-feed" id="main-feed">
+        <!-- Article cards will be inserted here -->
+    </div>
+    <button onclick="addArticle()">Compose Article</button>
+
+    <div class="article-detail" id="article-detail" style="display: none;">
+        <h2 id="article-title"></h2>
+        <p id="article-body"></p>
+        <p id="article-date"></p>
+        <div class="comment-section">
+            <h3>Comments</h3>
+            <div id="comments"></div>
+            <input type="text" id="comment-author" placeholder="Your name">
+            <textarea id="comment-body" placeholder="Your comment"></textarea>
+            <button onclick="addComment()">Add Comment</button>
+        </div>
+    </div>
+
+    <script>
+        const articles = [];
+
+        function addArticle() {
+            const title = prompt("Enter article title:");
+            const body = prompt("Enter article body:");
+            const date = new Date().toLocaleString();
+            const article = { title, body, date, status: 'draft' };
+            articles.push(article);
+            renderArticleCards();
+        }
+
+        function renderArticleCards() {
+            const feed = document.getElementById('main-feed');
+            feed.innerHTML = '';
+            articles.forEach(article => {
+                const card = document.createElement('div');
+                card.className = 'article-card';
+                card.innerHTML = `
+                    <h3>${article.title}</h3>
+                    <p>${article.body.slice(0, 100)}...</p>
+                    <p>${article.date}</p>
+                    <button onclick="publishArticle(${articles.indexOf(article)})">Publish</button>
+                    <button onclick="viewArticle(${articles.indexOf(article)})">View</button>
+                `;
+                feed.appendChild(card);
+            });
+        }
+
+        function publishArticle(index) {
+            articles[index].status = 'published';
+            renderArticleCards();
+        }
+
+        function viewArticle(index) {
+            const article = articles[index];
+            document.getElementById('article-title').innerText = article.title;
+            document.getElementById('article-body').innerText = article.body;
+            document.getElementById('article-date').innerText = article.date;
+            document.getElementById('comments').innerHTML = '';
+            article.comments?.forEach(comment => {
+                const commentElement = document.createElement('div');
+                commentElement.innerHTML = `<strong>${comment.author}:</strong> ${comment.body}`;
+                document.getElementById('comments').appendChild(commentElement);
+            });
+            document.getElementById('article-detail').style.display = 'block';
+        }
+
+        function addComment() {
+            const author = document.getElementById('comment-author').value;
+            const body = document.getElementById('comment-body').value;
+            const article = articles.find(article => article.status === 'published');
+            if (!article.comments) article.comments = [];
+            article.comments.push({ author, body });
+            viewArticle(articles.indexOf(article));
+        }
+
+        // Initial render
+        renderArticleCards();
+    </script>
+</body>
+</html>

@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Graft</title>
+<!-- Prism syntax highlighting -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markup.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-css.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js" defer></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;1,400&display=swap');
 
@@ -27,7 +33,6 @@
   --font-ui:   'Segoe UI', Calibri, Arial, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
   --left-w:  272px;
-  --right-w: 272px;
 }
 
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -104,11 +109,11 @@ body { background:var(--bg); color:var(--text); font-family:var(--font-ui); font
   font-family:var(--font-mono); letter-spacing:.02em;
   line-height:1.3; cursor:pointer;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  user-select:none; -webkit-user-select:none;
 }
 .nav-item:hover { color:var(--text-2); background:rgba(255,255,255,.025); }
 .nav-item.active { color:var(--text); background:rgba(255,255,255,.04); border-left-color:var(--item-color,var(--text-3)); }
-.nav-dot { width:5px; height:5px; border-radius:50%; background:var(--item-color,var(--text-4)); flex-shrink:0; opacity:.65; }
-.nav-num { color:var(--text-4); font-size:9px; flex-shrink:0; min-width:20px; }
+.nav-dot { width:2px; height:12px; border-radius:1px; background:var(--item-color,var(--text-4)); flex-shrink:0; opacity:.6; }
 .nav-name { overflow:hidden; text-overflow:ellipsis; flex:1; }
 
 /* Also keep intro link style */
@@ -136,9 +141,12 @@ body { background:var(--bg); color:var(--text); font-family:var(--font-ui); font
 /* ── CENTER ── */
 .panel-center { flex:1; display:flex; flex-direction:column; overflow:hidden; }
 .tabs { display:flex; background:var(--surface); border-bottom:1px solid var(--border); flex-shrink:0; }
-.tab { padding:10px 16px; font-size:11px; font-family:var(--font-mono); color:var(--text-3); cursor:pointer; border-bottom:2px solid transparent; transition:color .1s; letter-spacing:.05em; user-select:none; }
+.tab { padding:10px 16px; font-size:11px; font-family:var(--font-mono); color:var(--text-3); cursor:pointer; border-bottom:2px solid transparent; transition:color .1s; letter-spacing:.05em; user-select:none; display:flex; align-items:center; gap:5px; }
 .tab:hover { color:var(--text-2); }
 .tab.active { color:var(--text); border-bottom-color:var(--c-accent); }
+.tab-spinner { display:none; width:11px; height:11px; border:1.5px solid currentColor; border-top-color:transparent; border-radius:50%; animation:tab-spin .7s linear infinite; opacity:.7; flex-shrink:0; }
+.tab.is-generating .tab-spinner { display:inline-block; }
+@keyframes tab-spin { to { transform:rotate(360deg); } }
 .output-area { flex:1; overflow:hidden; display:none; }
 .output-area.active { display:flex; flex-direction:column; }
 .gen-bar { height:2px; background:var(--border); flex-shrink:0; display:none; }
@@ -146,10 +154,278 @@ body { background:var(--bg); color:var(--text); font-family:var(--font-ui); font
 .gen-bar-fill { height:100%; background:var(--c-accent); animation:gen-slide 1.5s ease-in-out infinite; }
 @keyframes gen-slide { 0%{width:0;margin-left:0} 50%{width:60%;margin-left:20%} 100%{width:0;margin-left:100%} }
 
-/* ── Mid viewer (v3 document style) ── */
-.mid-viewer { flex:1; overflow-y:auto; padding:52px 52px 100px; }
-.mid-viewer::-webkit-scrollbar { width:4px; }
-.mid-viewer::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
+/* ── Chalkboard ── */
+.board {
+  flex:1; overflow:hidden; position:relative;
+  background:#141414;
+  cursor:grab;
+  user-select:none;
+  font-family:'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+}
+.board.panning { cursor:grabbing; }
+.board-surface {
+  position:absolute; top:0; left:0;
+  width:0; height:0; transform-origin:0 0;
+  will-change:transform;
+}
+.board-empty {
+  position:absolute; inset:0;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:10px; color:rgba(255,255,255,.18); font-size:14px; text-align:center; line-height:1.9;
+  pointer-events:none;
+}
+.board-empty-icon { font-size:32px; opacity:.15; }
+
+/* ── Zoom controls ── */
+.board-zoom {
+  position:absolute; bottom:16px; right:16px; z-index:10;
+  display:flex; gap:4px; align-items:center;
+}
+.board-zoom-btn {
+  width:26px; height:26px; border-radius:3px;
+  background:#131415; border:1px solid #272b2e;
+  color:#6a6660; font-size:14px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition:color .1s, border-color .1s; line-height:1;
+}
+.board-zoom-btn:hover { color:#fff; border-color:#444; }
+.board-zoom-pct {
+  font-family:var(--font-mono); font-size:9px; color:#444;
+  min-width:30px; text-align:center; letter-spacing:.04em;
+}
+
+/* ── Part group (chalk rectangle) ── */
+.b-part-group {
+  position:absolute;
+  cursor:pointer;
+  border-radius:6px;
+  transition:background .2s;
+}
+.b-part-group.is-verified {
+  background:rgba(40,90,50,.15);
+}
+.b-part-group.is-targeted {
+  background:rgba(80,50,140,.1);
+}
+/* chalk outline via box-shadow — never affects layout */
+.b-part-group.is-targeted {
+  box-shadow: 0 0 0 2px rgba(176,144,220,.8), 0 0 20px rgba(140,100,220,.15);
+}
+.b-part-group.is-verified {
+  box-shadow: 0 0 0 2px rgba(94,203,126,.7), 0 0 18px rgba(60,160,80,.1);
+}
+.b-part-group.is-affected {
+  box-shadow: 0 0 0 2px rgba(224,176,80,.6), 0 0 14px rgba(200,140,40,.1);
+}
+/* Both verified AND targeted — show green ring inside, purple outside */
+.b-part-group.is-verified.is-targeted {
+  box-shadow:
+    0 0 0 2px rgba(94,203,126,.7),
+    0 0 0 5px rgba(176,144,220,.6),
+    0 0 22px rgba(140,100,220,.15);
+  background: rgba(60,40,100,.12);
+}
+.b-part-header {
+  position:relative; z-index:1;
+  padding:0 0 10px 0;
+  margin-bottom:10px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+.b-part-name {
+  font-size:20px; font-weight:700;
+  color:rgba(245,245,245,.92);
+  letter-spacing:-.01em; line-height:1.1;
+  cursor:pointer; transition:color .12s;
+  font-family:'Segoe UI', Arial, sans-serif;
+}
+.b-part-name:hover { color:#fff; }
+.b-part-name.is-targeted { color:rgba(200,170,255,.98); }
+.b-part-verified-label {
+  font-size:10px; font-weight:700; letter-spacing:.2em;
+  text-transform:uppercase; color:rgba(94,203,126,.8);
+  margin-top:3px;
+}
+.b-part-affected-label {
+  font-size:10px; font-weight:600; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--c-warn);
+  margin-top:3px; animation:blink-warn 1.8s ease infinite;
+}
+.b-part-verify {
+  display:inline-block; margin-top:6px;
+  font-size:9px; font-weight:600; letter-spacing:.12em; text-transform:uppercase;
+  padding:6px 16px; border-radius:3px; cursor:pointer;
+  background:transparent; border:1px solid rgba(255,255,255,.15); color:rgba(255,255,255,.3);
+  transition:border-color .14s, color .14s;
+  font-family:var(--font-mono);
+}
+.b-part-verify:hover { border-color:rgba(255,255,255,.4); color:rgba(255,255,255,.7); }
+.b-part-verify.is-verified { border-color:rgba(94,203,126,.6); color:rgba(94,203,126,.85); }
+
+/* Section columns inside the group */
+.b-sections-row {
+  position:relative; z-index:1;
+  display:flex; flex-direction:row; gap:0;
+}
+.b-section {
+  cursor:pointer; flex:1;
+  padding:0 14px 6px 10px;
+  border-left:2px solid rgba(255,255,255,.13);
+  transition:background .1s, border-color .1s;
+}
+.b-section:first-child { border-left:2px solid rgba(255,255,255,.13); }
+.b-section:hover       { background:rgba(255,255,255,.04); border-left-color:rgba(255,255,255,.3); }
+.b-section.is-targeted { background:rgba(120,80,200,.13); border-left-color:rgba(176,144,220,.85); }
+.b-section.is-targeted:hover { background:rgba(120,80,200,.18); }
+.b-sec-kw {
+  display:flex; align-items:center; gap:6px;
+  margin-bottom:5px; margin-top:2px;
+}
+.b-kw-label {
+  font-family:var(--font-mono); font-size:8px; font-weight:700;
+  letter-spacing:.2em; text-transform:uppercase;
+  padding:1px 5px; border-radius:2px;
+}
+.b-kw-STATE     .b-kw-label { color:var(--c-state);     background:rgba(94,203,126,.1); }
+.b-kw-TYPE      .b-kw-label { color:var(--c-type);      background:rgba(180,120,220,.1); }
+.b-kw-STRUCTURE .b-kw-label { color:var(--c-structure); background:rgba(80,160,220,.1); }
+.b-kw-WHEN      .b-kw-label { color:var(--c-when);      background:rgba(220,160,60,.1); }
+.b-sec-name {
+  font-size:13px; font-weight:600; color:rgba(240,240,240,.88);
+  line-height:1.2; margin-bottom:4px;
+}
+.b-intent {
+  font-size:10px; color:rgba(200,200,200,.4);
+  font-style:italic; line-height:1.3; margin-bottom:6px;
+  overflow:hidden; text-overflow:ellipsis;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+}
+.b-body {
+  font-size:11.5px; line-height:1.85; color:rgba(220,220,220,.65);
+}
+
+
+
+
+/* ── Command bar ── */
+.cmd-bar {
+  position:absolute;
+  bottom:60px; left:50%; transform:translateX(-50%);
+  width:min(600px, calc(100% - 80px));
+  background:var(--surface2);
+  border:1px solid var(--border2);
+  border-radius:8px;
+  box-shadow:0 8px 40px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.04);
+  z-index:100;
+  overflow:hidden;
+  animation:cmd-in .15s ease;
+}
+@keyframes cmd-in {
+  from { opacity:0; transform:translateX(-50%) translateY(8px); }
+  to   { opacity:1; transform:translateX(-50%) translateY(0); }
+}
+.cmd-target {
+  display:flex; align-items:center; gap:8px;
+  padding:7px 14px 0;
+  font-family:var(--font-mono); font-size:9px;
+  color:var(--c-intent); letter-spacing:.06em;
+}
+.cmd-target-label { flex:1; opacity:.85; }
+.cmd-target-clear {
+  background:none; border:none; color:var(--text-3);
+  cursor:pointer; font-size:12px; padding:0; line-height:1;
+  transition:color .1s;
+}
+.cmd-target-clear:hover { color:var(--text); }
+.cmd-row {
+  display:flex; align-items:stretch; gap:8px;
+  padding:8px 8px 8px 14px;
+}
+.cmd-input {
+  flex:1; background:transparent; border:none; outline:none;
+  color:var(--text); font-family:var(--font-ui); font-size:13px;
+  line-height:1.55; resize:none; max-height:160px; overflow-y:auto;
+  padding:4px 0; min-height:32px; align-self:center;
+}
+.cmd-input::placeholder { color:var(--text-4); }
+.cmd-submit {
+  width:32px; border-radius:5px; flex-shrink:0; align-self:stretch;
+  background:var(--c-accent); border:none; color:#000;
+  font-size:16px; cursor:pointer; display:flex;
+  align-items:center; justify-content:center;
+  transition:background .12s; line-height:1; min-height:32px;
+}
+.cmd-submit:hover:not(:disabled) { background:#6ab4ff; }
+.cmd-submit:disabled { background:var(--border2); color:var(--text-4); cursor:not-allowed; }
+.cmd-chips {
+  display:flex; gap:5px; flex-wrap:wrap;
+  padding:0 14px 10px; border-top:1px solid var(--border);
+  padding-top:8px; margin-top:0;
+}
+.cmd-chip {
+  font-size:10px; font-family:var(--font-mono);
+  padding:2px 8px; border-radius:3px;
+  border:1px solid var(--border2); color:var(--text-3);
+  cursor:pointer; background:none; transition:border-color .1s, color .1s;
+}
+.cmd-chip:hover { border-color:var(--c-accent); color:var(--text); }
+
+/* history float */
+.cmd-history {
+  position:absolute; bottom:60px; left:50%; transform:translateX(-50%);
+  width:min(600px, calc(100% - 80px));
+  max-height:340px;
+  background:var(--surface2); border:1px solid var(--border2);
+  border-radius:8px; box-shadow:0 8px 40px rgba(0,0,0,.6);
+  z-index:99; display:flex; flex-direction:column;
+  overflow:hidden;
+}
+.cmd-history-head {
+  padding:9px 14px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+  font-family:var(--font-mono); font-size:9px;
+  letter-spacing:.18em; text-transform:uppercase; color:var(--text-3);
+  flex-shrink:0;
+}
+
+/* ── Marquee selection rect ── */
+.board-marquee {
+  position:absolute; pointer-events:none; z-index:50;
+  border:1px solid rgba(176,144,220,.7);
+  background:rgba(120,80,200,.08);
+  border-radius:2px;
+  display:none;
+}
+
+/* hint bar at bottom of board */
+.board-hint {
+  position:absolute; bottom:16px; left:50%; transform:translateX(-50%);
+  font-family:var(--font-mono); font-size:9px; color:var(--text-4);
+  letter-spacing:.08em; pointer-events:none;
+}
+
+/* ── Scope switcher ── */
+.scope-switcher {
+  display:flex; gap:1px; background:var(--border); border-radius:3px; padding:2px;
+}
+.scope-btn {
+  flex:1; text-align:center; padding:5px 4px;
+  font-family:var(--font-mono); font-size:9px; letter-spacing:.06em;
+  color:var(--text-4); cursor:pointer; border-radius:2px;
+  background:transparent; border:none;
+  transition:all .1s;
+}
+.scope-btn:hover { color:var(--text-2); }
+.scope-btn-active { background:var(--surface2); color:var(--c-intent) !important; }
+/* ── Scope halo ── */
+.b-halo {
+  position:absolute; border-radius:8px; pointer-events:none;
+  border:1px solid rgba(176,144,220,.18);
+  background:rgba(176,144,220,.04);
+  transition:opacity .3s;
+}
+.b-halo.scope-precise { border-color:rgba(176,144,220,.35); background:rgba(176,144,220,.07); }
+.b-halo.scope-broad   { border-color:rgba(176,144,220,.1);  background:rgba(176,144,220,.025); }
+@keyframes blink-warn { 0%,100%{opacity:1} 50%{opacity:.4} }
 .mid-content { max-width:660px; margin:0 auto; }
 .mid-empty { height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; color:var(--text-3); font-size:13px; text-align:center; line-height:1.9; }
 .mid-empty-icon { font-size:28px; opacity:.25; }
@@ -201,11 +477,54 @@ body { background:var(--bg); color:var(--text); font-family:var(--font-ui); font
 @keyframes blink { 50%{opacity:0} }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
 
-.code-panel { flex:1; overflow:auto; padding:18px 22px; font-family:var(--font-mono); font-size:12px; line-height:1.7; color:var(--text-2); white-space:pre; tab-size:2; }
+/* Hidden textarea for edit sync */
+.code-ta { position:absolute; opacity:0; pointer-events:none; width:1px; height:1px; }
+/* Code viewer */
+.code-panel {
+  flex:1; overflow:auto;
+  font-family:var(--font-mono); font-size:12px; line-height:1.7;
+  background:#1d1f21; /* Prism tomorrow bg */
+  tab-size:2;
+}
+.code-panel pre[class*="language-"] {
+  margin:0; padding:18px 22px;
+  background:transparent !important;
+  font-size:12px; line-height:1.7;
+  white-space:pre; overflow:visible;
+}
+/* Graft ownership regions */
+.graft-region {
+  display:block;
+  position:relative;
+  border-left:2px solid;
+  padding-left:6px;
+  margin-left:-8px;
+}
+.graft-region-label {
+  display:inline-flex; align-items:center; gap:5px;
+  font-size:9px; font-weight:700; letter-spacing:.12em;
+  text-transform:uppercase; opacity:.6;
+  padding:2px 0 3px 0;
+  font-family:var(--font-mono);
+  user-select:none; cursor:pointer;
+  transition:opacity .12s;
+  text-decoration:none;
+}
+.graft-region-label:hover { opacity:1; }
+.graft-region-label::before { content:"↗"; font-size:8px; opacity:.7; }
+.graft-STATE   { border-color:var(--c-state);     background:rgba(94,203,126,.05); }
+.graft-TYPE    { border-color:var(--c-type);       background:rgba(180,120,220,.05); }
+.graft-STRUCTURE{ border-color:var(--c-structure); background:rgba(80,160,220,.05); }
+.graft-WHEN    { border-color:var(--c-when);       background:rgba(220,112,128,.06); }
+.graft-STATE    .graft-region-label { color:var(--c-state); }
+.graft-TYPE     .graft-region-label { color:var(--c-type); }
+.graft-STRUCTURE .graft-region-label { color:var(--c-structure); }
+.graft-WHEN     .graft-region-label { color:var(--c-when); }
+/* Override prism tomorrow background */
+code[class*="language-"], pre[class*="language-"] { background:transparent !important; }
 .preview-frame { flex:1; border:none; background:#fff; }
 
 /* ── RIGHT: Intent Tree ── */
-.panel-right { width:var(--right-w); border-left:1px solid var(--border); }
 .tree-scroll { flex:1; overflow-y:auto; overflow-x:hidden; padding:6px 0; }
 .tree-scroll::-webkit-scrollbar { width:3px; }
 .tree-scroll::-webkit-scrollbar-thumb { background:var(--border2); }
@@ -277,6 +596,11 @@ body { background:var(--bg); color:var(--text); font-family:var(--font-ui); font
 
 /* ── Statusbar ── */
 .statusbar { height:24px; background:var(--surface); border-top:1px solid var(--border); display:flex; align-items:center; padding:0 13px; gap:14px; flex-shrink:0; }
+.model-pill { font-family:var(--font-mono); font-size:9px; letter-spacing:.08em; padding:2px 8px; border-radius:10px; border:1px solid var(--border); color:var(--text-3); cursor:pointer; background:none; transition:border-color .12s, color .12s; user-select:none; }
+.model-pill:hover { border-color:var(--text-3); color:var(--text-2); }
+.model-pill.is-cloud { border-color:rgba(94,203,126,.5); color:var(--c-state); }
+.example-chip { font-size:10px; font-family:var(--font-mono); padding:3px 8px; border-radius:3px; border:1px solid var(--border); color:var(--text-3); cursor:pointer; background:none; transition:border-color .12s, color .12s; white-space:nowrap; }
+.example-chip:hover { border-color:var(--c-accent); color:var(--text); }
 .stat { font-family:var(--font-mono); font-size:10px; color:var(--text-3); letter-spacing:.05em; display:flex; align-items:center; gap:5px; }
 .stat-dot { width:6px; height:6px; border-radius:50%; background:var(--text-4); }
 .stat-dot.ok    { background:var(--c-state); }
@@ -369,14 +693,7 @@ body { background:var(--bg); color:var(--text); font-family:var(--font-ui); font
 }
 .mid-section:hover { background: rgba(255,255,255,.02); }
 .mid-section-targeted { background: rgba(176,144,220,.07) !important; border-left: 2px solid rgba(176,144,220,.4); padding-left: 10px; }
-.mid-regen-btn {
-  font-family: var(--font-mono); font-size: 9px; padding: 2px 6px;
-  border-radius: 2px; border: 1px solid var(--border2); background: none;
-  color: var(--text-3); cursor: pointer; margin-left: auto; flex-shrink: 0;
-  opacity: 0; transition: opacity .1s, color .1s;
-}
-.mid-sec-header:hover .mid-regen-btn { opacity: 1; }
-.mid-regen-btn:hover { color: var(--c-accent); border-color: var(--c-accent); }
+
 .mid-sec-header { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; }
 </style>
 </head>
@@ -396,32 +713,7 @@ body { background:var(--bg); color:var(--text); font-family:var(--font-ui); font
   </div>
 </div>
 
-<!-- Conflict modal -->
-<div class="modal-bg" id="modal-conflict">
-  <div class="modal">
-    <div class="modal-title">⚠ Ownership Conflict</div>
-    <div class="modal-sub" id="conflict-sub"></div>
-    <div class="conflict-list" id="conflict-list"></div>
-    <div class="modal-sub" style="font-size:11px;color:var(--text-3)">Checked sections transfer ownership to the new node.</div>
-    <div class="modal-acts">
-      <button class="btn" onclick="closeModal('modal-conflict')">Cancel</button>
-      <button class="btn btn-warn" onclick="proceedWithConflicts()">Proceed</button>
-    </div>
-  </div>
-</div>
 
-<!-- Delete modal -->
-<div class="modal-bg" id="modal-delete">
-  <div class="modal">
-    <div class="modal-title">Delete node?</div>
-    <div class="modal-sub" id="delete-sub"></div>
-    <div class="modal-acts">
-      <button class="btn" onclick="closeModal('modal-delete')">Cancel</button>
-      <button class="btn" style="color:var(--c-when);border-color:rgba(224,112,128,.3)" onclick="confirmDelete(false)">Delete &amp; orphan Mid</button>
-      <button class="btn" style="color:var(--c-when);border-color:rgba(224,112,128,.3);background:rgba(224,112,128,.1)" onclick="confirmDelete(true)">Delete &amp; remove Mid</button>
-    </div>
-  </div>
-</div>
 
 <!-- Topbar -->
 <div class="topbar">
@@ -469,22 +761,74 @@ body { background:var(--bg); color:var(--text); font-family:var(--font-ui); font
   <!-- CENTER -->
   <div class="panel-center">
     <div class="tabs">
-      <div class="tab active" data-tab="mid" onclick="switchTab('mid')">Mid</div>
-      <div class="tab" data-tab="code" onclick="switchTab('code')">Code</div>
-      <div class="tab" data-tab="preview" onclick="switchTab('preview')">Preview</div>
+      <div class="tab active" data-tab="mid" onclick="switchTab('mid')">Mid<span class="tab-spinner"></span></div>
+      <div class="tab" data-tab="code" onclick="switchTab('code')">Code<span class="tab-spinner"></span></div>
+      <div class="tab" data-tab="preview" onclick="switchTab('preview')">Preview<span class="tab-spinner"></span></div>
     </div>
     <div class="gen-bar" id="gen-bar"><div class="gen-bar-fill"></div></div>
 
     <div class="output-area active" id="tab-mid">
       <div class="stream-view" id="mid-stream" style="display:none"></div>
-      <div class="mid-viewer" id="mid-viewer">
-        <div class="mid-empty"><div class="mid-empty-icon">◈</div><div>Write a prompt on the right.<br>Press <strong>Enter</strong> to compile.</div></div>
+      <div class="board" id="board">
+        <div class="board-surface" id="board-surface"></div>
+        <div class="board-empty" id="board-empty">
+          <div class="board-empty-icon">◈</div>
+          <div>Press <strong>/</strong> to write a prompt.<br>Click a part or section to target it.</div>
+        </div>
+
+        <!-- Floating command bar -->
+        <div id="cmd-bar" class="cmd-bar" style="display:none">
+          <div class="cmd-target" id="cmd-target" style="display:none">
+            <span class="cmd-target-label" id="cmd-target-label"></span>
+            <button class="cmd-target-clear" onclick="clearTarget()">✕</button>
+          </div>
+          <div class="cmd-row">
+            <textarea id="prompt-ta" class="cmd-input"
+              placeholder="Describe what to build or change…"
+              rows="1"
+              oninput="onPromptInput()"
+              onkeydown="onPromptKey(event)"
+            ></textarea>
+            <button class="cmd-submit" id="btn-compile-prompt" onclick="compileMidFromPrompt()" disabled title="Enter to compile">↵</button>
+          </div>
+          <div class="cmd-chips" id="cmd-chips">
+            <button class="cmd-chip" onclick="useExample(this)">to-do list</button>
+            <button class="cmd-chip" onclick="useExample(this)">budget tracker</button>
+            <button class="cmd-chip" onclick="useExample(this)">recipe book</button>
+            <button class="cmd-chip" onclick="useExample(this)">habit tracker</button>
+            <button class="cmd-chip" onclick="useExample(this)">kanban board</button>
+          </div>
+        </div>
+
+        <!-- History panel (floats above cmd bar) -->
+        <div id="history-drawer" class="cmd-history" style="display:none">
+          <div class="cmd-history-head">
+            <span>History</span>
+            <button onclick="toggleHistory()" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:13px;padding:0">✕</button>
+          </div>
+          <div id="history-list" style="flex:1;overflow-y:auto;padding:0 0 8px"></div>
+        </div>
+
+        <div id="board-marquee" class="board-marquee"></div>
+        <div class="board-hint" id="board-hint">/ prompt  ·  ctrl+drag to select  ·  esc to dismiss</div>
+        <div class="board-zoom">
+          <button class="board-zoom-btn" onclick="boardZoom(-0.15)" title="Zoom out">−</button>
+          <span class="board-zoom-pct" id="board-zoom-pct">100%</span>
+          <button class="board-zoom-btn" onclick="boardZoom(+0.15)" title="Zoom in">+</button>
+          <button class="board-zoom-btn" onclick="boardZoomReset()" title="Reset" style="font-size:9px;width:auto;padding:0 6px;font-family:var(--font-mono)">fit</button>
+          <button class="board-zoom-btn" onclick="toggleHistory()" title="History" style="font-size:10px;width:auto;padding:0 6px;font-family:var(--font-mono)">⟳</button>
+        </div>
       </div>
     </div>
 
     <div class="output-area" id="tab-code">
       <div class="stream-view" id="code-stream" style="display:none"></div>
-      <div class="code-panel" id="code-out"></div>
+      <!-- Hidden textarea keeps value for onCodeEdit compat -->
+      <textarea class="code-ta" id="code-out" spellcheck="false" autocomplete="off" oninput="onCodeEdit()"></textarea>
+      <!-- Syntax-highlighted + ownership-annotated display -->
+      <div class="code-panel" id="code-display">
+        <pre class="language-html" style="background:transparent"><code class="language-html" id="code-highlight"></code></pre>
+      </div>
     </div>
 
     <div class="output-area" id="tab-preview">
@@ -492,47 +836,7 @@ body { background:var(--bg); color:var(--text); font-family:var(--font-ui); font
     </div>
   </div>
 
-  <!-- RIGHT: Prompt Panel -->
-  <div class="panel panel-right" id="panel-right">
-
-    <!-- Header -->
-    <div class="panel-head" style="flex-direction:column;align-items:stretch;gap:6px;padding:10px 12px;min-height:unset">
-      <div style="display:flex;align-items:center;gap:7px">
-        <span class="panel-title" style="flex:1">Prompt</span>
-        <button class="btn btn-sm" id="btn-history" onclick="toggleHistory()" title="Prompt history">⟳ History</button>
-      </div>
-      <!-- Target bar — shown when a part/section is targeted -->
-      <div id="prompt-target-bar" style="display:none;font-family:var(--font-mono);font-size:9px;color:var(--c-intent);letter-spacing:.06em;padding:4px 8px;background:rgba(176,144,220,.07);border:1px solid rgba(176,144,220,.2);border-radius:2px">
-        <div style="display:flex;align-items:center;gap:6px">
-          <span style="opacity:.6">targeting</span>
-          <span id="prompt-target-label" style="color:var(--c-intent);flex:1"></span>
-          <button onclick="clearTarget()" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:11px;padding:0 2px;line-height:1">✕</button>
-        </div>
-        <div id="prompt-target-sections" style="margin-top:3px;color:var(--text-3);font-size:8px;line-height:1.6"></div>
-      </div>
-    </div>
-
-    <!-- Prompt textarea -->
-    <div class="intent-ed" style="border-top:none;flex-shrink:0;display:block">
-      <textarea class="intent-ta" id="prompt-ta"
-        placeholder="Describe what to build or change…&#10;&#10;Enter to compile · Shift+Enter for new line"
-        rows="5"
-        oninput="onPromptInput()"
-        onkeydown="onPromptKey(event)"
-      ></textarea>
-      <div class="intent-ta-hint">Enter <em>compile</em> · Shift+Enter <em>new line</em></div>
-      <div class="intent-ed-acts" style="justify-content:flex-end">
-        <button class="btn btn-sm btn-intent" id="btn-compile-prompt" onclick="compileMidFromPrompt()" disabled>↻ Compile</button>
-      </div>
-    </div>
-
-    <!-- History drawer -->
-    <div id="history-drawer" style="display:none;flex:1;overflow:hidden;flex-direction:column;border-top:1px solid var(--border)">
-      <div style="padding:8px 12px 4px;font-family:var(--font-mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--text-4)">History</div>
-      <div id="history-list" style="flex:1;overflow-y:auto;padding:0 0 16px"></div>
-    </div>
-
-  </div>
+  <!-- Command bar replaces right panel — rendered as floating overlay -->
 
 </div>
 
@@ -543,7 +847,10 @@ body { background:var(--bg); color:var(--text); font-family:var(--font-ui); font
     <span id="stat-text">Ready</span>
   </div>
   <div class="stat" id="stat-tokens" style="display:none"><span id="stat-token-count"></span></div>
-  <div class="stat stat-right" id="stat-nodes"></div>
+  <div class="stat stat-right" style="display:flex;align-items:center;gap:10px">
+    <button class="model-pill" id="model-pill" onclick="toggleModelOverride()" title="Toggle model source (session only)">local</button>
+    <span id="stat-nodes"></span>
+  </div>
 </div>
 
 <script>
@@ -551,18 +858,30 @@ body { background:var(--bg); color:var(--text); font-family:var(--font-ui); font
 let project        = null;
 let sections       = [];
 let parts          = [];      // MidPart[]
-let history        = [];      // PromptHistoryEntry[]
+let promptHistory  = [];      // PromptHistoryEntry[]
 let codeFiles      = {};
 let currentReader  = null;
+let modelOverride  = null;    // null | 'local' | 'cloud' -- session only
+let configCache    = null;
 let generating     = false;
 let activeCodeFile = null;
-let historyOpen    = false;
+let historyOpen    = false; // nb: history renamed promptHistory
 
 // Prompt panel state
 let targetPartId      = null;   // soft target: part id or null (global)
 let targetSectionIds  = [];     // specific section ids within target part
+let promptScope       = 'part'; // 'precise' | 'part' | 'broad' 
 
 // ── Util ──────────────────────────────────────────────────────────────────────
+function toPascalLabel(str) {
+  return String(str)
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/[_-]+/g, ' ')
+    .split(' ')
+    .map(function(w) { return w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : ''; })
+    .join(' ').trim();
+}
+
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const partOf = sectionId => { const s = sections.find(x=>x.id===sectionId); return s ? parts.find(p=>p.id===s.part_id)||null : null; };
 
@@ -571,12 +890,18 @@ function setStatus(txt, state='ok') {
   document.getElementById('stat-dot').className = 'stat-dot ' + state;
 }
 
-function setGenerating(active, label='') {
+function setGenerating(active, label='', genTab=null) {
   generating = active;
   document.getElementById('gen-bar').classList.toggle('active', active);
+  // Spinner: clear all first, then set on active tab
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('is-generating'));
+  if (active && genTab) {
+    const t = document.querySelector(`.tab[data-tab="${genTab}"]`);
+    if (t) t.classList.add('is-generating');
+  }
   document.getElementById('btn-stop').classList.toggle('visible', active);
   document.getElementById('btn-code').disabled  = active || !sections.length;
-  document.getElementById('btn-compile-prompt').disabled = active || !document.getElementById('prompt-ta')?.value.trim() || !project;
+  const _ta = document.getElementById('prompt-ta'); const _sb = document.getElementById('btn-compile-prompt'); if (_sb) _sb.disabled = active || !_ta?.value.trim() || !project;
   document.getElementById('stat-tokens').style.display = active ? '' : 'none';
   if (active) setStatus(label, 'busy');
 }
@@ -584,7 +909,9 @@ function setGenerating(active, label='') {
 function updateButtons() {
   if (generating) return;
   document.getElementById('btn-code').disabled = !sections.length;
-  document.getElementById('btn-compile-prompt').disabled = !document.getElementById('prompt-ta')?.value.trim() || !project;
+  const ta = document.getElementById('prompt-ta');
+  const btn = document.getElementById('btn-compile-prompt');
+  if (btn) btn.disabled = !(ta?.value.trim()) || !project;
 }
 
 function updateStatBar() {
@@ -649,11 +976,11 @@ function openNew() {
 }
 
 function clearAllPanels() {
-  document.getElementById('mid-viewer').innerHTML = '<div class="mid-empty"><div class="mid-empty-icon">◈</div><div>Write a prompt on the right.<br>Press <strong>Enter</strong> to compile.</div></div>';
+  document.getElementById('board-surface').innerHTML = '<div class="mid-empty"><div class="mid-empty-icon">◈</div><div>Write a prompt on the right.<br>Press <strong>Enter</strong> to compile.</div></div>';
   document.getElementById('mid-stream').style.display = 'none';
   document.getElementById('mid-stream').textContent = '';
-  document.getElementById('code-out').textContent = '';
-  document.getElementById('code-out').style.display = '';
+  document.getElementById('code-out').value = ''; setCodeDisplay('');
+  // code-out is always hidden (display handled by code-display div)
   document.getElementById('code-stream').style.display = 'none';
   document.getElementById('code-stream').textContent = '';
   document.getElementById('preview').srcdoc = '';
@@ -689,9 +1016,9 @@ async function stopGeneration() {
   if (currentReader) { try { await currentReader.cancel(); } catch(e) {} currentReader = null; }
   setGenerating(false); setStatus('Stopped'); updateButtons();
   document.getElementById('mid-stream').style.display = 'none';
-  document.getElementById('mid-viewer').style.display = '';
+  document.getElementById('board').style.display = '';
   document.getElementById('code-stream').style.display = 'none';
-  document.getElementById('code-out').style.display = '';
+  // code-out is always hidden (display handled by code-display div)
 }
 
 // ── Projects ──────────────────────────────────────────────────────────────────
@@ -716,7 +1043,7 @@ function sectionsToText(secs) {
 // ── Project load/save (updated) ───────────────────────────────────────────────
 async function loadProject(name) {
   if (!name) {
-    project=null; sections=[]; parts=[]; history=[]; codeFiles={};
+    project=null; sections=[]; parts=[]; promptHistory = []; codeFiles={};
     clearAllPanels(); renderMid(); renderStruct(); renderFileTree();
     updateButtons(); showCached(false); updateSidebarHeader();
     return;
@@ -732,7 +1059,7 @@ async function loadProject(name) {
     const md = await mr.json();
     sections = md.sections || [];
     parts    = md.parts    || [];
-    history  = (await hr.json()).history || [];
+    promptHistory = (await hr.json()).history || [];
 
     codeFiles = {};
     const cd = await cr.json();
@@ -748,7 +1075,7 @@ async function loadProject(name) {
     const firstFile = Object.keys(codeFiles)[0];
     if (firstFile) {
       activeCodeFile = firstFile;
-      document.getElementById('code-out').textContent = codeFiles[firstFile];
+      document.getElementById('code-out').value = codeFiles[firstFile]; setCodeDisplay(codeFiles[firstFile]);
       document.getElementById('preview').srcdoc = codeFiles[firstFile];
     }
 
@@ -777,8 +1104,13 @@ async function saveProject() {
 // ── Prompt panel ──────────────────────────────────────────────────────────────
 
 function onPromptInput() {
-  const v = document.getElementById('prompt-ta').value.trim();
+  const ta = document.getElementById('prompt-ta');
+  const v = ta ? ta.value.trim() : '';
   document.getElementById('btn-compile-prompt').disabled = !v || !project;
+  const chips = document.getElementById('cmd-chips');
+  if (chips) chips.style.display = v ? 'none' : '';
+  // Auto-resize
+  if (ta) { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 160) + 'px'; }
 }
 
 function onPromptKey(e) {
@@ -786,52 +1118,83 @@ function onPromptKey(e) {
     e.preventDefault();
     compileMidFromPrompt();
   }
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    closeCmdBar();
+  }
 }
 
 function setTarget(partId, sectionIds = [], labelText = '') {
   targetPartId     = partId;
   targetSectionIds = sectionIds;
-  const bar   = document.getElementById('prompt-target-bar');
-  const label = document.getElementById('prompt-target-label');
-  const secsEl = document.getElementById('prompt-target-sections');
+  const targetEl = document.getElementById('cmd-target');
+  const labelEl  = document.getElementById('cmd-target-label');
+  if (!targetEl || !labelEl) return;
   if (partId) {
-    bar.style.display = '';
+    targetEl.style.display = '';
     const part = parts.find(p => p.id === partId);
-    label.textContent = labelText || part?.name || partId;
+    const name = labelText || part?.name || partId;
     if (sectionIds.length) {
       const names = sectionIds.map(sid => {
         const s = sections.find(x => x.id === sid);
-        return s ? s.keyword+': '+s.name : sid;
+        return s ? s.keyword + ': ' + s.name : sid;
       });
-      secsEl.textContent = names.join('  ·  ');
+      labelEl.textContent = '→ ' + toPascalLabel(name) + '  ·  ' + names.join('  ·  ');
     } else {
-      secsEl.textContent = 'full part';
+      labelEl.textContent = '→ ' + toPascalLabel(name) + '  (full part)';
     }
   } else {
-    bar.style.display = 'none';
+    targetEl.style.display = 'none';
   }
 }
 
-function clearTarget() {
+function clearTarget(skipRender) {
   setTarget(null);
+  if (!skipRender) renderMid();
+  // Keep bar open, just clear the target pill
+}
+
+function openCmdBar() {
+  const bar = document.getElementById('cmd-bar');
+  if (!bar) return;
+  bar.style.display = '';
+  // auto-resize textarea on open
+  const ta = document.getElementById('prompt-ta');
+  if (ta) { ta.style.height = 'auto'; setTimeout(() => ta.focus(), 20); }
+  document.getElementById('board-hint').style.display = 'none';
+}
+
+function closeCmdBar() {
+  const bar = document.getElementById('cmd-bar');
+  if (!bar || bar.style.display === 'none') return; // already closed
+  bar.style.display = 'none';
+  const hist = document.getElementById('history-drawer');
+  if (hist) hist.style.display = 'none';
+  document.getElementById('board-hint').style.display = '';
+  historyOpen = false;
+  // Clear target state so board stops showing highlights
+  targetPartId = null; targetSectionIds = [];
+  setTarget(null);
+  renderMid();
+  renderStruct();
 }
 
 function toggleHistory() {
   historyOpen = !historyOpen;
   const drawer = document.getElementById('history-drawer');
+  if (!drawer) return;
   drawer.style.display = historyOpen ? 'flex' : 'none';
-  document.getElementById('btn-history').style.color = historyOpen ? 'var(--c-intent)' : '';
-  if (historyOpen) renderHistory();
+  if (historyOpen) { openCmdBar(); renderHistory(); }
 }
 
 function renderHistory() {
   const el = document.getElementById('history-list');
-  if (!history.length) {
+  if (!promptHistory.length) {
     el.innerHTML = '<div style="padding:12px 14px;font-family:var(--font-mono);font-size:10px;color:var(--text-4)">No prompts yet.</div>';
     return;
   }
   // Most recent first
-  const entries = [...history].reverse();
+  const entries = [...promptHistory].reverse();
   el.innerHTML = entries.map(e => {
     const ts = new Date(e.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
     const target = e.target_part_id
@@ -861,17 +1224,15 @@ async function compileMidFromPrompt() {
   const prompt = document.getElementById('prompt-ta').value.trim();
   if (!prompt || !project) return;
 
-  setGenerating(true, 'Compiling Mid…');
+  setGenerating(true, 'Compiling Mid…', 'mid');
   switchTab('mid');
 
   const streamEl = document.getElementById('mid-stream');
-  const viewerEl = document.getElementById('mid-viewer');
-  streamEl.textContent = '';
-  streamEl.style.display = 'block';
-  viewerEl.style.display = 'none';
-  const cursor = document.createElement('span');
-  cursor.className = 'stream-cursor';
-  streamEl.appendChild(cursor);
+  const viewerEl = document.getElementById('board');
+  // Keep board visible — stream appears as gen-bar pulse only
+  streamEl.style.display = 'none';
+  viewerEl.style.display = '';
+  let accumulated = '';
 
   const body = {
     project_name: project.name,
@@ -883,8 +1244,10 @@ async function compileMidFromPrompt() {
   };
 
   try {
+    const hdrs = {'Content-Type':'application/json'};
+    if (modelOverride) hdrs['X-Model-Override'] = modelOverride;
     const resp = await fetch('/compile/mid', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
+      method: 'POST', headers: hdrs,
       body: JSON.stringify(body)
     });
     if (!resp.ok) { setGenerating(false); setStatus('Compile failed', 'error'); return; }
@@ -906,8 +1269,14 @@ async function compileMidFromPrompt() {
           if (obj.token) {
             tokenCount++;
             document.getElementById('stat-token-count').textContent = tokenCount + ' tokens';
-            streamEl.insertBefore(document.createTextNode(obj.token), cursor);
-            streamEl.scrollTop = streamEl.scrollHeight;
+            accumulated += obj.token;
+            // Live-parse every ~8 tokens for board preview
+            if (tokenCount % 8 === 0) {
+              const preview = liveParsePartial(accumulated, sections, parts);
+              if (preview.sections.length) {
+                renderMidPreview(preview.sections, preview.parts);
+              }
+            }
           }
           if (obj.saved) {
             sections = obj.sections;
@@ -915,12 +1284,10 @@ async function compileMidFromPrompt() {
 
             // Append history entry
             if (obj.history_entry) {
-              history.push(obj.history_entry);
+              promptHistory.push(obj.history_entry);
               if (historyOpen) renderHistory();
             }
 
-            streamEl.style.display = 'none';
-            viewerEl.style.display = '';
             renderMid(); renderStruct();
             updateSidebarHeader(); updateStatBar();
             showCached(true);
@@ -929,20 +1296,28 @@ async function compileMidFromPrompt() {
 
             // Clear prompt after successful compile
             document.getElementById('prompt-ta').value = '';
-            document.getElementById('btn-compile-prompt').disabled = true;
+            const _sb2 = document.getElementById('btn-compile-prompt');
+            if (_sb2) _sb2.disabled = true;
+            const chips = document.getElementById('cmd-chips');
+            if (chips) chips.style.display = '';
+            // Reset textarea height
+            const ta2 = document.getElementById('prompt-ta');
+            if (ta2) ta2.style.height = 'auto';
+            // Dismiss command bar after successful compile
+            closeCmdBar();
 
             if (obj.affected && obj.affected.length > 0) {
               showAffectedNotification(obj.affected);
             }
           }
-          if (obj.error) throw new Error(obj.error);
-        } catch(e) { if (e.message) throw e; }
+          if (obj.error) { setGenerating(false); setStatus('Error: ' + obj.error, 'error'); return; }
+        } catch(e) { /* json parse glitch */ }
       }
     }
   } catch(e) {
-    streamEl.style.display = 'none'; viewerEl.style.display = '';
-    setGenerating(false); setStatus('Error: ' + e.message, 'error');
+    setStatus('Error: ' + e.message, 'error');
   } finally {
+    setGenerating(false);
     currentReader = null;
   }
 }
@@ -950,12 +1325,13 @@ async function compileMidFromPrompt() {
 async function compileCode() {
   if (!sections.length) return;
   const midText = sectionsToText(sections);
-  setGenerating(true, 'Generating code…');
+  setGenerating(true, 'Generating code…', 'code');
   switchTab('code');
 
   const streamEl = document.getElementById('code-stream');
   const codeEl   = document.getElementById('code-out');
-  streamEl.textContent = ''; streamEl.style.display = 'block'; codeEl.style.display = 'none';
+  streamEl.textContent = ''; streamEl.style.display = 'block';
+  document.getElementById('code-display').style.display = 'none';
   const cursor = document.createElement('span');
   cursor.className = 'stream-cursor';
   streamEl.appendChild(cursor);
@@ -1001,9 +1377,16 @@ async function compileCode() {
             });
 
             streamEl.style.display = 'none';
-            codeEl.style.display = '';
-            codeEl.textContent = clean;
+            document.getElementById('code-display').style.display = '';
+            codeEl.value = clean;
+            setCodeDisplay(clean);
             document.getElementById('preview').srcdoc = clean;
+            // Spinner on preview tab while iframe loads
+            const prevTab = document.querySelector('.tab[data-tab="preview"]');
+            if (prevTab) {
+              prevTab.classList.add('is-generating');
+              document.getElementById('preview').onload = () => prevTab.classList.remove('is-generating');
+            }
             renderFileTree();
             setGenerating(false); updateButtons();
             setStatus('Code generated');
@@ -1014,18 +1397,20 @@ async function compileCode() {
     }
   } catch(e) {
     document.getElementById('code-stream').style.display = 'none';
-    document.getElementById('code-out').style.display = '';
+    document.getElementById('code-display').style.display = '';
     setGenerating(false); setStatus('Error: ' + e.message, 'error');
   } finally {
     currentReader = null;
   }
 }
 
+// Reroll: recompile Mid for just one section
+
 // Surgical code recompile for one section
 async function surgicalRecompile(sectionId) {
   const section = sections.find(s => s.id === sectionId);
   if (!section || !activeCodeFile || !codeFiles[activeCodeFile]) return;
-  setGenerating(true, 'Recompiling section…');
+  setGenerating(true, 'Recompiling section…', 'mid');
   try {
     const resp = await fetch('/compile/code/surgical', {
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -1051,7 +1436,7 @@ async function surgicalRecompile(sectionId) {
           const obj = JSON.parse(raw);
           if (obj.done && obj.code) {
             codeFiles[activeCodeFile] = obj.code;
-            document.getElementById('code-out').textContent = obj.code;
+            document.getElementById('code-out').value = obj.code; setCodeDisplay(obj.code);
             document.getElementById('preview').srcdoc = obj.code;
             await fetch('/projects/code', {
               method:'POST', headers:{'Content-Type':'application/json'},
@@ -1066,116 +1451,577 @@ async function surgicalRecompile(sectionId) {
   finally { currentReader = null; setGenerating(false); updateButtons(); }
 }
 
-// ── Mid render ────────────────────────────────────────────────────────────────
+// ── Live partial Mid parser (for streaming preview) ─────────────────────────
 
-const KEYWORD_COLORS = {
-  STATE: 'var(--c-state)', TYPE: 'var(--c-type)',
-  STRUCTURE: 'var(--c-structure)', WHEN: 'var(--c-when)'
-};
-
-function renderMid() {
-  const el = document.getElementById('mid-viewer');
-  if (!sections.length) {
-    el.innerHTML = '<div class="mid-empty"><div class="mid-empty-icon">◈</div><div>Write a prompt on the right.<br>Press <strong>Enter</strong> to compile.</div></div>';
-    return;
-  }
-
-  // Group by part_id in part order
-  const partOrder = parts.length
-    ? parts.filter(p => sections.some(s => s.part_id === p.id))
-    : [{id:'__all', name:'', status:'draft'}];
-
-  const partMap = {};
-  sections.forEach(s => {
-    const pid = s.part_id || '__all';
-    (partMap[pid] = partMap[pid] || []).push(s);
+function liveParsePartial(text, existingSections, existingParts) {
+  // Quick-parse whatever has been streamed so far
+  // Returns { sections, parts } to overlay on existing
+  const newSecs = [];
+  const blocks = text.split(/\n(?=PART_ID:)/);
+  blocks.forEach((block, i) => {
+    block = block.trim();
+    if (!block) return;
+    let partId = '', kw = '', name = '', intent = '', marker = '';
+    const bodyLines = [];
+    let inBody = false;
+    block.split('\n').forEach(line => {
+      const ls = line.trim();
+      if (inBody) { bodyLines.push(line); return; }
+      if (ls.startsWith('PART_ID:')) partId = ls.slice(8).trim();
+      else if (/^(STATE|TYPE|STRUCTURE|WHEN):\s/i.test(ls)) {
+        const m = ls.match(/^(STATE|TYPE|STRUCTURE|WHEN):\s*(.*)/i);
+        if (m) { kw = m[1].toUpperCase(); name = m[2].trim(); }
+      } else if (ls.startsWith('INTENT:')) intent = ls.slice(7).trim();
+      else if (ls.startsWith('MARKER:')) marker = ls.slice(7).trim();
+      else if (ls === '---') inBody = true;
+    });
+    const body = bodyLines.join('\n').trim();
+    if (kw && (body.length > 5 || name)) {
+      newSecs.push({
+        id: `live_${i}`, keyword: kw, name: name || `section_${i}`,
+        intent_tag: intent, part_id: partId || 'global',
+        code_marker: marker || `graft_${i}`, body
+      });
+    }
   });
 
-  // Doc header
-  const totalParts = partOrder.length;
-  const totalSecs  = sections.length;
-  const projName   = project?.name || '';
+  if (!newSecs.length) return { sections: existingSections, parts: existingParts };
 
-  let h = [];
-  h.push(`<div class="mid-doc-header">`);
-  h.push(`<div class="mid-doc-eyebrow">${totalSecs} sections · ${totalParts} parts</div>`);
-  h.push(`<div class="mid-doc-title">${esc(projName)}</div>`);
-  h.push(`</div>`);
+  // Merge live sections with existing (by name)
+  const byName = {};
+  existingSections.forEach(s => { byName[s.name] = s; });
+  newSecs.forEach(s => { byName[s.name] = s; });
+  const merged = Object.values(byName);
 
-  partOrder.forEach((part, partIdx) => {
+  // Parts
+  const partIds = new Set(merged.map(s => s.part_id));
+  const existingPartMap = {};
+  existingParts.forEach(p => { existingPartMap[p.id] = p; });
+  const mergedParts = [...partIds].map(pid =>
+    existingPartMap[pid] || { id: pid, name: pid, status: 'draft', snapshots: [] }
+  );
+
+  return { sections: merged, parts: mergedParts };
+}
+
+function renderMidPreview(previewSections, previewParts) {
+  // Lightweight board update that preserves existing layout
+  // Swap out sections/parts temporarily, render, restore
+  const savedSections = sections;
+  const savedParts    = parts;
+  sections = previewSections;
+  parts    = previewParts;
+  renderMid();
+  sections = savedSections;
+  parts    = savedParts;
+}
+
+// ── Board (spatial Mid viewer) ────────────────────────────────────────────────
+
+const KW_COLOR = {
+  STATE:'var(--c-state)', TYPE:'var(--c-type)',
+  STRUCTURE:'var(--c-structure)', WHEN:'var(--c-when)'
+};
+const KW_CAP = {
+  STATE:'#2a4a35', TYPE:'#4a3820', STRUCTURE:'#1e3448', WHEN:'#4a2028'
+};
+
+// Pan + zoom state
+let panX = 60,  panY = 40,  boardScale = 0.9;
+let isPanning = false, panSX = 0, panSY = 0, panOX = 0, panOY = 0;
+let boardReady = false;
+
+let panMoved = false;
+
+// Marquee (ctrl+drag) state
+let isMarquee = false, mqSX = 0, mqSY = 0; // start in board-local coords
+let suppressNextBgClose = false; // prevent bg-click close after marquee
+let justFinishedMarquee = false; // prevent section mouseup from firing after marquee release
+
+function initBoard() {
+  const board = document.getElementById('board');
+  if (!board || boardReady) return;
+  boardReady = true;
+
+  board.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    if (e.target.closest('button, a, input, select, textarea')) return;
+    if (e.ctrlKey || e.metaKey) {
+      // Ctrl+drag → marquee select mode, not pan
+      isMarquee = true;
+      panMoved  = false;
+      const rect = board.getBoundingClientRect();
+      mqSX = e.clientX - rect.left;
+      mqSY = e.clientY - rect.top;
+      board.classList.add('panning'); // keep grabbing cursor
+      e.preventDefault();
+      return;
+    }
+    isPanning = true;
+    panMoved  = false;
+    panSX = e.clientX; panSY = e.clientY;
+    panOX = panX;      panOY = panY;
+    board.classList.add('panning');
+  });
+
+  window.addEventListener('mousemove', e => {
+    if (isMarquee) {
+      const rect = board.getBoundingClientRect();
+      const cx = e.clientX - rect.left;
+      const cy = e.clientY - rect.top;
+      const x = Math.min(mqSX, cx), y = Math.min(mqSY, cy);
+      const w = Math.abs(cx - mqSX),  h = Math.abs(cy - mqSY);
+      if (!panMoved && Math.hypot(w, h) > 4) panMoved = true;
+      const mq = document.getElementById('board-marquee');
+      if (mq) mq.style.cssText = `display:block;left:${x}px;top:${y}px;width:${w}px;height:${h}px;`;
+      // Live selection highlight — no renderMid, just toggle CSS classes
+      liveMarqueeHighlight(rect, x, y, w, h);
+      return;
+    }
+    if (!isPanning) return;
+    const dx = e.clientX - panSX;
+    const dy = e.clientY - panSY;
+    if (!panMoved && Math.hypot(dx, dy) > 4) panMoved = true;
+    if (!panMoved) return;
+    panX = panOX + dx;
+    panY = panOY + dy;
+    applyPan();
+  });
+
+  // Capture phase on board — fires before ANY child stopPropagation can block it.
+  // This is the only reliable way to clear pan/marquee when releasing over a part/section.
+  const clearDrag = e => {
+    if (isMarquee) {
+      isMarquee = false;
+      board.classList.remove('panning');
+      const mq = document.getElementById('board-marquee');
+      if (mq) mq.style.display = 'none';
+      if (panMoved) finishMarqueeSelect(e);
+      panMoved = false;
+      return;
+    }
+    isPanning = false;
+    panMoved = false;   // ← always reset so verify button works after panning
+    board.classList.remove('panning');
+  };
+  board.addEventListener('mouseup', clearDrag, true);  // capture — cannot be blocked
+  window.addEventListener('mouseup', clearDrag);       // fallback for release outside board
+
+  // Scroll to zoom
+  board.addEventListener('wheel', e => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.08 : 0.08;
+    boardZoomAt(delta, e.clientX, e.clientY);
+  }, { passive: false });
+}
+
+function hitTestRect(boardRect, rx, ry, rw, rh) {
+  // Returns { byPart, hitSections } for sections intersecting the board-local rect
+  const hit = [];
+  sections.forEach(s => {
+    const el = document.getElementById('sec-' + s.id);
+    if (!el) return;
+    const er = el.getBoundingClientRect();
+    const ex = er.left - boardRect.left, ey = er.top - boardRect.top;
+    if (ex < rx + rw && ex + er.width > rx && ey < ry + rh && ey + er.height > ry)
+      hit.push(s);
+  });
+  const byPart = {};
+  hit.forEach(s => { (byPart[s.part_id] = byPart[s.part_id] || []).push(s); });
+  return { hit, byPart };
+}
+
+function liveMarqueeHighlight(boardRect, rx, ry, rw, rh) {
+  const { hit, byPart } = hitTestRect(boardRect, rx, ry, rw, rh);
+  // Pick winning part
+  const winPartId = hit.length
+    ? Object.entries(byPart).sort((a,b) => b[1].length - a[1].length)[0][0]
+    : null;
+  const winIds = new Set(winPartId ? (byPart[winPartId] || []).map(s => s.id) : []);
+
+  // Check if all sections of winning part are selected → part-level
+  const partSecs = winPartId ? sections.filter(s => s.part_id === winPartId) : [];
+  const allSelected = partSecs.length > 0 && partSecs.every(s => winIds.has(s.id));
+
+  // Directly toggle CSS classes — no renderMid (too slow for mousemove)
+  sections.forEach(s => {
+    const el = document.getElementById('sec-' + s.id);
+    if (!el) return;
+    const active = winIds.has(s.id);
+    el.classList.toggle('is-targeted', active);
+  });
+  // Toggle part-level highlight
+  const partEls = document.querySelectorAll('.b-part-group');
+  partEls.forEach(g => {
+    // Find part id by checking if any child section is in this group
+    const firstSec = g.querySelector('.b-section');
+    if (!firstSec) return;
+    const sId = firstSec.id.replace('sec-','');
+    const sec = sections.find(x => x.id === sId);
+    const isWinPart = sec?.part_id === winPartId;
+    g.classList.toggle('is-targeted', isWinPart && allSelected);
+  });
+}
+
+function finishMarqueeSelect(e) {
+  const board = document.getElementById('board');
+  const boardRect = board.getBoundingClientRect();
+  const cx = e.clientX - boardRect.left;
+  const cy = e.clientY - boardRect.top;
+  const rx = Math.min(mqSX, cx), ry = Math.min(mqSY, cy);
+  const rw = Math.abs(cx - mqSX), rh = Math.abs(cy - mqSY);
+  if (rw < 6 || rh < 6) return;
+
+  const { hit, byPart } = hitTestRect(boardRect, rx, ry, rw, rh);
+  if (!hit.length) return;
+  suppressNextBgClose = true;
+  justFinishedMarquee = true;
+
+  const winPartId = Object.entries(byPart).sort((a,b) => b[1].length - a[1].length)[0][0];
+  const winSecs   = byPart[winPartId];
+
+  // If all sections of part are selected, treat as full part select
+  const allPartSecs = sections.filter(s => s.part_id === winPartId);
+  const allSelected = allPartSecs.length === winSecs.length;
+
+  targetPartId     = winPartId;
+  targetSectionIds = allSelected ? [] : winSecs.map(s => s.id);
+  setTarget(winPartId, targetSectionIds);
+  openCmdBar();
+  renderMid();
+  renderStruct();
+}
+
+function applyPan() {
+  const surface = document.getElementById('board-surface');
+  if (surface) surface.style.transform = `translate(${panX}px,${panY}px) scale(${boardScale})`;
+  const pct = document.getElementById('board-zoom-pct');
+  if (pct) pct.textContent = Math.round(boardScale * 100) + '%';
+}
+
+function boardZoom(delta) {
+  const board = document.getElementById('board');
+  if (!board) return;
+  const rect = board.getBoundingClientRect();
+  boardZoomAt(delta, rect.left + rect.width/2, rect.top + rect.height/2);
+}
+
+function boardZoomAt(delta, cx, cy) {
+  const board = document.getElementById('board');
+  if (!board) return;
+  const rect = board.getBoundingClientRect();
+  const newScale = Math.min(2.5, Math.max(0.25, boardScale + delta));
+  // Adjust pan so zoom centres on cursor
+  const bx = cx - rect.left;
+  const by = cy - rect.top;
+  panX = bx - (bx - panX) * (newScale / boardScale);
+  panY = by - (by - panY) * (newScale / boardScale);
+  boardScale = newScale;
+  applyPan();
+}
+
+function boardZoomReset() {
+  boardScale = 0.9; panX = 60; panY = 40;
+  applyPan();
+}
+
+// Card layout: flow in columns by keyword group
+// STATE/TYPE anchor top-left, STRUCTURE to their right, WHEN spread below
+function computeCardPositions(partOrder, partMap) {
+  // Assign each part a column based on dominant keyword
+  // cols: 0=data(STATE/TYPE), 1=structure, 2=behaviour(WHEN), 3=mixed
+  const COL_X  = [0, 310, 620, 930];
+  const COL_GAP = 28;
+  const colY   = [0, 0, 0, 0];
+
+  return partOrder.map(part => {
+    const secs = partMap[part.id] || [];
+    const kws  = secs.map(s => s.keyword);
+    let col = 3;
+    if (kws.every(k => k === 'STATE' || k === 'TYPE'))       col = 0;
+    else if (kws.every(k => k === 'STRUCTURE'))               col = 1;
+    else if (kws.every(k => k === 'WHEN'))                    col = 2;
+    else if (kws.filter(k => k==='STATE'||k==='TYPE').length > kws.length/2) col = 0;
+    else if (kws.filter(k => k==='WHEN').length > kws.length/2) col = 2;
+    else if (kws.filter(k => k==='STRUCTURE').length > 0)        col = 1;
+
+    const x = COL_X[col];
+    const y = colY[col];
+    // Estimate card height: head≈56 + acts≈28 + sections*(~70)
+    const cardH = 56 + 28 + secs.length * 72;
+    colY[col] += cardH + COL_GAP;
+    return { part, secs, x, y };
+  });
+}
+
+function setScope(scope) {
+  promptScope = scope;
+  ['precise','part','broad'].forEach(s => {
+    const btn = document.getElementById('scope-' + s);
+    if (btn) btn.classList.toggle('scope-btn-active', s === scope);
+  });
+  drawHalos();
+}
+
+function drawHalos() { /* halos removed — section styling via CSS only */ }
+
+function renderMid() {
+  const empty   = document.getElementById('board-empty');
+  const surface = document.getElementById('board-surface');
+
+  if (!sections.length) {
+    empty.style.display = ''; surface.innerHTML = ''; return;
+  }
+  empty.style.display = 'none';
+  initBoard();
+  surface.innerHTML = '';
+
+  const partOrder = parts.length
+    ? parts.filter(p => sections.some(s => s.part_id === p.id))
+    : [{ id:'__all', name: project?.name || 'untitled', status:'draft' }];
+
+  const partMap = {};
+  sections.forEach(s => { const p = s.part_id||'__all'; (partMap[p]=partMap[p]||[]).push(s); });
+
+  // ── Two-column grid with dynamic X so wide parts never bleed ────────────
+  const GAP_Y   = 60;
+  const GAP_X   = 60;   // gap between columns
+  const PAD     = 20;
+  const SEC_W   = 210;
+  const pending = [];
+
+  // Pre-compute column assignments and widths
+  const partData = [];
+  partOrder.forEach((part, i) => {
     const secs = partMap[part.id] || [];
     if (!secs.length) return;
+    partData.push({ part, secs, col: partData.length % 2,
+                    w: secs.length * SEC_W + PAD * 2 });
+  });
 
-    const status = part.status || 'draft';
-    const partColor = status === 'verified' ? 'var(--c-state)'
-                    : status === 'affected'  ? 'var(--c-warn)'
-                    : 'var(--border2)';
-    const isTargeted = targetPartId === part.id;
+  // Max card width per column → sets col 1 X so nothing can overlap
+  const maxW = [0, 0];
+  partData.forEach(d => { maxW[d.col] = Math.max(maxW[d.col], d.w); });
+  const COL_X = [60, 60 + (maxW[0] || 400) + GAP_X];
 
-    h.push(`<div class="mid-part-header" id="part-${part.id}"
-      style="border-left-color:${partColor}${isTargeted?';box-shadow:inset 0 0 0 1px rgba(176,144,220,.25)':''}"
-      onclick="clickPart('${part.id}')" title="Click to target this part">`);
-    h.push(`<div style="display:flex;align-items:center;margin-bottom:7px">`);
-    h.push(`<div class="mid-part-eyebrow" style="margin-bottom:0">Part ${partIdx+1} of ${totalParts}</div>`);
-    h.push(`<span class="part-badge part-badge-${status}">${status}</span>`);
-    h.push(`<button class="part-verify-btn" onclick="event.stopPropagation();verifyPart('${part.id}')" title="Mark as verified">✓ verify</button>`);
-    h.push(`</div>`);
-    h.push(`<div class="mid-part-title">${esc(part.name)}</div>`);
-    h.push(`</div>`);
+  partData.forEach(({ part, secs, col, w }) => {
+    const status      = part.status || 'draft';
+    const isVerified  = status === 'verified';
+    const isAffected  = status === 'affected';
+    const isTargeted  = targetPartId === part.id && !targetSectionIds.length;
+    const groupW      = w;
 
-    secs.forEach((s, si) => {
-      const kcolor = KEYWORD_COLORS[s.keyword] || 'var(--text-3)';
-      const secNum = `${partIdx+1}.${si+1}`;
-      const isSecTargeted = targetSectionIds.includes(s.id);
+    // Outer group div
+    const group = document.createElement('div');
+    group.className = 'b-part-group'
+      + (isVerified ? ' is-verified' : '')
+      + (isTargeted ? ' is-targeted' : '');
+    group.style.cssText = `left:${COL_X[col]}px;top:0px;width:${groupW}px;padding:${PAD}px;`;
+    group.onmouseup = e => {
+      if (panMoved) return;
+      if (e.target.closest('button,.b-section,.b-part-name')) return;
+      clickPart(part.id);
+    };
 
-      h.push(`<div class="mid-section${isSecTargeted?' mid-section-targeted':''}"
-        id="sec-${s.id}"
-        onclick="clickSection('${s.id}', '${part.id}')"
-        title="Click to target this section">`);
-      h.push(`<div class="mid-sec-header">`);
-      h.push(`<span class="mid-sec-num">${secNum}</span>`);
-      h.push(`<span class="mid-keyword-badge" style="--kw-color:${kcolor}">${s.keyword}</span>`);
-      h.push(`<span class="mid-sec-name">${esc(s.name)}</span>`);
-      if (s.code_marker) {
-        h.push(`<button class="mid-regen-btn" onclick="event.stopPropagation();surgicalRecompile('${s.id}')" title="Recompile this section's code">↻</button>`);
-      }
-      h.push(`</div>`);
-      h.push(`<div class="mid-intent-tag">↑ ${esc(s.intent_tag)}</div>`);
-      h.push(`<hr class="mid-hr">`);
-      h.push(`<div class="mid-body">${esc(s.body)}</div>`);
-      h.push(`</div>`);
+    // No SVG needed — outline handled by box-shadow CSS
+
+    // Header
+    const header = document.createElement('div');
+    header.className = 'b-part-header';
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'b-part-name' + (isTargeted ? ' is-targeted' : '');
+    nameEl.textContent = toPascalLabel(part.name);
+    nameEl.onmouseup = e => {
+      if (panMoved) return;
+      e.stopPropagation();
+      clickPart(part.id);
+    };
+    header.appendChild(nameEl);
+
+    if (isVerified) {
+      const lbl = document.createElement('div');
+      lbl.className = 'b-part-verified-label'; lbl.textContent = 'Verified';
+      header.appendChild(lbl);
+    } else if (isAffected) {
+      const lbl = document.createElement('div');
+      lbl.className = 'b-part-affected-label'; lbl.textContent = 'Affected';
+      header.appendChild(lbl);
+    }
+
+    const vBtn = document.createElement('button');
+    vBtn.className = 'b-part-verify' + (isVerified ? ' is-verified' : '');
+    vBtn.textContent = isVerified ? '✓ Verified' : 'Verify';
+    vBtn.addEventListener('mousedown', e => { e.stopPropagation(); e.preventDefault(); });
+    vBtn.addEventListener('mouseup',   e => { e.stopPropagation(); if (!panMoved) { if (isVerified) unverifyPart(part.id); else verifyPart(part.id); } });
+    vBtn.addEventListener('click',     e => { e.stopPropagation(); e.preventDefault(); });
+    header.appendChild(vBtn);
+    group.appendChild(header);
+
+    // Section columns
+    const row = document.createElement('div');
+    row.className = 'b-sections-row';
+    secs.forEach(s => {
+      const el = buildSection(s, part.id);
+      el.style.width = SEC_W + 'px';
+      row.appendChild(el);
+    });
+    group.appendChild(row);
+
+    surface.appendChild(group);
+    pending.push({ group, isTargeted, isVerified, isAffected, col });
+  });
+
+  // ── RAF: measure real heights, stack each column cleanly ────────────
+  pending.forEach(({ group }) => { group.style.visibility = 'hidden'; });
+
+  requestAnimationFrame(() => {
+    const colCur = [60, 60];
+    pending.forEach(({ group, col }) => {
+      const h = group.offsetHeight;
+      group.style.top        = colCur[col] + 'px';
+      group.style.left       = COL_X[col] + 'px';
+      group.style.visibility = '';
+      colCur[col] += h + GAP_Y;
     });
   });
 
-  el.innerHTML = h.join('');
+  applyPan();
+}
+
+
+function buildSection(s, partId) {
+  const isTargeted = targetSectionIds.includes(s.id);
+  const kw = s.keyword || 'STATE';
+
+  const el = document.createElement('div');
+  el.className = 'b-section' + (isTargeted ? ' is-targeted' : '');
+  el.id = `sec-${s.id}`;
+  el.onmouseup = e => {
+    if (panMoved) return;
+    if (justFinishedMarquee) { justFinishedMarquee = false; return; }
+    e.stopPropagation();
+    clickSection(s.id, partId, e.shiftKey);
+  };
+
+  // Keyword row with colored pill label + regen
+  const kwRow = document.createElement('div');
+  kwRow.className = `b-sec-kw b-kw-${kw}`;
+  const kwLabel = document.createElement('span');
+  kwLabel.className = 'b-kw-label';
+  kwLabel.textContent = kw;
+  kwRow.append(kwLabel);
+
+  const nameEl = document.createElement('div');
+  nameEl.className = 'b-sec-name';
+  nameEl.textContent = s.name;
+
+  const intentEl = document.createElement('div');
+  intentEl.className = 'b-intent';
+  intentEl.textContent = s.intent_tag;
+
+  const bodyEl = document.createElement('div');
+  bodyEl.className = 'b-body';
+  bodyEl.textContent = s.body;
+
+  el.append(kwRow, nameEl, intentEl, bodyEl);
+  return el;
 }
 
 function clickPart(partId) {
-  if (targetPartId === partId && targetSectionIds.length === 0) {
-    clearTarget();
-  } else {
-    targetSectionIds = [];
-    setTarget(partId, [], parts.find(p=>p.id===partId)?.name || partId);
+  // Plain click on already-targeted part (no sections) → deselect
+  if (targetPartId === partId && !targetSectionIds.length) {
+    closeCmdBar();
+    return;
   }
-  renderMid(); // re-render to update highlight
-  document.getElementById('prompt-ta').focus();
+  targetSectionIds = [];
+  setTarget(partId, [], parts.find(p => p.id === partId)?.name || partId);
+  openCmdBar();
+  renderMid();
 }
 
-function clickSection(sectionId, partId) {
-  // Toggle section in targetSectionIds within the part
-  if (targetPartId !== partId) {
-    targetSectionIds = [sectionId];
-    setTarget(partId, [sectionId]);
-  } else {
+function clickSection(sectionId, partId, shift) {
+  if (shift && targetPartId === partId) {
+    // Shift-click: toggle within multi-selection
     if (targetSectionIds.includes(sectionId)) {
       targetSectionIds = targetSectionIds.filter(id => id !== sectionId);
+      if (!targetSectionIds.length) { closeCmdBar(); return; }
+    } else {
+      targetSectionIds = [...targetSectionIds, sectionId];
+    }
+  } else if (!shift && targetSectionIds.length === 1 && targetSectionIds[0] === sectionId) {
+    // Plain click on the only selected item → deselect
+    closeCmdBar();
+    return;
+  } else {
+    targetSectionIds = [sectionId];
+  }
+  setTarget(partId, targetSectionIds);
+  openCmdBar();
+  renderMid();
+  renderStruct();
+}
+
+function scrollToSection(sectionId, shiftKey) {
+  if (shiftKey) {
+    // Shift-click: add/remove from target selection, open cmd bar
+    const s = sections.find(x => x.id === sectionId);
+    if (!s) return;
+    const partId = s.part_id;
+    if (targetPartId !== partId) {
+      // Different part — start fresh
+      targetSectionIds = [sectionId];
+    } else if (targetSectionIds.includes(sectionId)) {
+      targetSectionIds = targetSectionIds.filter(id => id !== sectionId);
+      if (!targetSectionIds.length) { closeCmdBar(); renderMid(); renderStruct(); return; }
     } else {
       targetSectionIds = [...targetSectionIds, sectionId];
     }
     setTarget(partId, targetSectionIds);
+    openCmdBar();
+    renderMid();
+    renderStruct();
+    // Also scroll to it
   }
-  renderMid();
-  document.getElementById('prompt-ta').focus();
+
+  // Switch to Mid tab if needed
+  if (currentTab !== 'mid') switchTab('mid');
+  const el = document.getElementById('sec-' + sectionId);
+  if (!el) return;
+  const board = document.getElementById('board');
+  if (!board) return;
+  const boardRect = board.getBoundingClientRect();
+  const surface = document.getElementById('board-surface');
+
+  // Measure section in unscaled surface coords
+  const elRect    = el.getBoundingClientRect();
+  const surfaceRect = surface.getBoundingClientRect();
+  // Center of element in unscaled surface space
+  const elCX = (elRect.left + elRect.width/2  - surfaceRect.left) / boardScale;
+  const elCY = (elRect.top  + elRect.height/2 - surfaceRect.top)  / boardScale;
+  const elH  = elRect.height / boardScale;  // unscaled element height
+
+  // Target scale: section fills ~65% of viewport height, clamped [0.8, 2.0]
+  const targetScale = Math.min(2.0, Math.max(0.8, boardRect.height * 0.65 / elH));
+
+  // Target pan at new scale: centre element in board viewport
+  const targetPanX = boardRect.width/2  - elCX * targetScale;
+  const targetPanY = boardRect.height/2 - elCY * targetScale;
+
+  // Smooth animate pan + scale together
+  const startX = panX, startY = panY, startS = boardScale;
+  const dx = targetPanX - startX, dy = targetPanY - startY, ds = targetScale - startS;
+  const dur = 360, t0 = performance.now();
+  function step(t) {
+    const p = Math.min(1, (t - t0) / dur);
+    const ease = p < 0.5 ? 2*p*p : -1+(4-2*p)*p;
+    panX = startX + dx * ease;
+    panY = startY + dy * ease;
+    boardScale = startS + ds * ease;
+    applyPan();
+    if (p < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
 }
 
 // ── Structure sidebar ─────────────────────────────────────────────────────────
@@ -1208,7 +2054,7 @@ function renderStruct() {
                          : status === 'affected'  ? 'var(--c-warn)'
                          : 'var(--text-4)';
     const firstKw = secs[0]?.keyword || 'STATE';
-    const partColor = KEYWORD_COLORS[firstKw] || 'var(--text-4)';
+    const partColor = KW_COLOR[firstKw] || 'var(--text-4)';
 
     const toggle = document.createElement('div');
     toggle.className = 'part-toggle open';
@@ -1223,15 +2069,32 @@ function renderStruct() {
     children.className = 'part-children open';
 
     secs.forEach((s, si) => {
-      const kcolor = KEYWORD_COLORS[s.keyword] || 'var(--text-3)';
+      const kcolor = KW_COLOR[s.keyword] || 'var(--text-3)';
       const item = document.createElement('div');
-      item.className = 'nav-item';
-      if (targetSectionIds.includes(s.id)) item.style.color = 'var(--c-intent)';
+      const isSelected = targetSectionIds.includes(s.id);
+      item.className = 'nav-item' + (isSelected ? ' active' : '');
+      item.style.setProperty('--item-color', isSelected ? 'var(--c-intent)' : kcolor);
       item.dataset.sectionId = s.id;
       item.innerHTML = `
-        <span class="nav-dot" style="--dot-color:${kcolor}">${partIdx+1}.${si+1}</span>
+        <span class="nav-dot" style="--item-color:${kcolor}"></span>
         <span class="nav-name">${esc(s.name)}</span>`;
-      item.onclick = () => clickSection(s.id, part.id);
+      item.onclick = e => {
+        if (e.shiftKey) {
+          scrollToSection(s.id, true);
+        } else {
+          // Plain click: select this section, open cmd bar, scroll to it
+          const sec = sections.find(x => x.id === s.id);
+          if (sec) {
+            targetPartId = sec.part_id;
+            targetSectionIds = [s.id];
+            setTarget(sec.part_id, [s.id]);
+            openCmdBar();
+            renderMid();
+            renderStruct();
+          }
+          scrollToSection(s.id, false);
+        }
+      };
       children.appendChild(item);
     });
 
@@ -1267,7 +2130,7 @@ function renderFileTree() {
 
 function selectFile(name) {
   activeCodeFile = name;
-  document.getElementById('code-out').textContent = codeFiles[name] || '';
+  document.getElementById('code-out').value = codeFiles[name] || ''; setCodeDisplay(codeFiles[name] || '');
   document.getElementById('preview').srcdoc = codeFiles[name] || '';
   renderFileTree();
 }
@@ -1347,9 +2210,12 @@ async function acceptAffected() {
 async function verifyPart(partId) {
   if (!project) return;
   try {
+    // Backend checks incoming part status: "draft" = unverify, anything else = verify.
+    // Must pre-set status to "verified" before sending or backend does nothing.
+    const updated = parts.map(p => p.id === partId ? {...p, status:'verified'} : p);
     const r = await fetch('/projects/parts/verify', {
       method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ project_name: project.name, part_id: partId, sections, parts })
+      body: JSON.stringify({ project_name: project.name, part_id: partId, sections, parts: updated })
     });
     const d = await r.json();
     if (d.saved) {
@@ -1360,14 +2226,255 @@ async function verifyPart(partId) {
   } catch(e) { setStatus('Verify failed', 'error'); }
 }
 
+async function unverifyPart(partId) {
+  if (!project) return;
+  // Set status back to draft by patching the parts array and saving
+  const updated = parts.map(p => p.id === partId ? {...p, status:'draft'} : p);
+  try {
+    const r = await fetch('/projects/parts/verify', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      // Send with a sentinel to mark as unverify — backend will just save parts as-is
+      body: JSON.stringify({ project_name: project.name, part_id: partId, sections, parts: updated })
+    });
+    const d = await r.json();
+    if (d.saved) {
+      parts = d.parts;
+      renderStruct(); renderMid();
+      setStatus(`Unverified: ${parts.find(p=>p.id===partId)?.name || partId}`);
+    }
+  } catch(e) { setStatus('Unverify failed', 'error'); }
+}
+
+async function revertPart(partId) {
+  if (!project) return;
+  try {
+    const r = await fetch('/projects/parts/revert', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ project_name: project.name, part_id: partId, sections, parts })
+    });
+    const d = await r.json();
+    if (d.saved) {
+      sections = d.sections;
+      parts    = d.parts;
+      renderStruct(); renderMid();
+      setStatus(`Reverted: ${parts.find(p=>p.id===partId)?.name || partId}`);
+    }
+  } catch(e) { setStatus('Revert failed', 'error'); }
+}
+
 function getPartStatus(partId) {
   return parts.find(p => p.id === partId)?.status || 'draft';
 }
 
+// ── Code edit ────────────────────────────────────────────────────────────────
+function onCodeEdit() {
+  const el = document.getElementById('code-out');
+  if (!el || !activeCodeFile) return;
+  codeFiles[activeCodeFile] = el.value;
+  setCodeDisplay(el.value);
+  const preview = document.getElementById('preview');
+  if (preview) preview.srcdoc = el.value;
+}
+
+function setCodeDisplay(text) {
+  const display = document.getElementById('code-highlight');
+  if (!display) return;
+  if (!text) { display.innerHTML = ''; return; }
+
+  // ── 1. Parse [graft:marker] regions in the raw text ──────────────────
+  const lines = text.split('\n');
+  // Map: lineIndex → { open: sectionId } or { close: sectionId }
+  const regionStarts = {}, regionEnds = {};
+  const markerToSection = {};
+  sections.forEach(s => { if (s.code_marker) markerToSection[s.code_marker] = s; });
+
+  let activeMarker = null;
+  lines.forEach((line, i) => {
+    const mOpen  = line.match(/\/\/\s*\[graft:([^\]]+)\]/);
+    const mClose = line.match(/\/\/\s*\[\/graft:([^\]]+)\]/);
+    if (mOpen)  { regionStarts[i] = mOpen[1];  activeMarker = mOpen[1]; }
+    if (mClose) { regionEnds[i]   = mClose[1]; activeMarker = null; }
+  });
+
+  // ── 2. Prism-highlight the full text ─────────────────────────────────
+  let highlighted;
+  try {
+    const lang = window.Prism?.languages?.html || window.Prism?.languages?.markup;
+    highlighted = lang
+      ? window.Prism.highlight(text, lang, 'html')
+      : escHtml(text);
+  } catch(e) { highlighted = escHtml(text); }
+
+  // ── 3. Split highlighted by \n, wrap graft regions ───────────────────
+  const hLines = highlighted.split('\n');
+  const out = [];
+  let inRegion = null; // current marker string
+
+  hLines.forEach((hLine, i) => {
+    // Open region — emit label, skip the raw marker comment line
+    if (regionStarts[i] !== undefined) {
+      const marker = regionStarts[i];
+      const sec = markerToSection[marker];
+      const kw  = sec?.keyword || 'WHEN';
+      const sId = sec ? sec.id : '';
+      const linkLabel = sec ? (sec.keyword + ' · ' + sec.name) : marker;
+      inRegion = marker;
+      // data-sid for event delegation — no inline onclick needed
+      out.push(
+        '<span class="graft-region graft-' + kw + '">' +
+        '<a class="graft-region-label" data-sid="' + escHtml(sId) + '" href="#">' +
+        escHtml(linkLabel) + '</a>'
+      );
+      return; // skip pushing the raw [graft:marker] comment line
+    }
+
+    // Close region — close span, skip the raw [/graft:marker] comment line
+    if (regionEnds[i] !== undefined) {
+      out.push('</span>');
+      inRegion = null;
+      return; // skip pushing the raw [/graft:marker] comment line
+    }
+
+    out.push(hLine);
+    if (i < hLines.length - 1) out.push('\n');
+  });
+
+  // Close any unclosed region
+  if (inRegion) out.push('</span>');
+
+  display.innerHTML = out.join('');
+
+  // ── 4. Re-run Prism on the element so nested spans still parse ────────
+  // (Prism.highlightElement would re-process but we already did it — skip)
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function graftLabelClick(e, sectionId) {
+  e.preventDefault();
+  e.stopPropagation();
+  if (!sectionId) return;
+  const s = sections.find(x => x.id === sectionId);
+  if (!s) return;
+  targetPartId = s.part_id;
+  targetSectionIds = [sectionId];
+  setTarget(s.part_id, [sectionId]);
+  openCmdBar();
+  scrollToSection(sectionId, false);
+  renderStruct();
+}
+
+// Event delegation — handles clicks on graft region labels (avoids inline onclick)
+document.addEventListener('DOMContentLoaded', () => {
+  const codeDisplay = document.getElementById('code-display');
+  if (codeDisplay) {
+    codeDisplay.addEventListener('click', e => {
+      const label = e.target.closest('.graft-region-label');
+      if (!label) return;
+      const sId = label.dataset.sid;
+      if (sId) graftLabelClick(e, sId);
+    });
+  }
+});
+
+// ── Model pill ───────────────────────────────────────────────────────────────
+async function initModelPill() {
+  try { const r = await fetch('/config'); configCache = await r.json(); } catch(e) { return; }
+  updateModelPill();
+}
+function effectiveSource() {
+  if (modelOverride) return modelOverride;
+  return configCache?.intent_compiler?.source || 'ollama';
+}
+function updateModelPill() {
+  const pill = document.getElementById('model-pill');
+  if (!pill || !configCache) return;
+  const src = effectiveSource();
+  const isCloud = src === 'anthropic';
+  const label = isCloud
+    ? (configCache.intent_compiler?.anthropic_model || 'cloud').replace('claude-','').split('-20')[0]
+    : (configCache.intent_compiler?.ollama_model || 'local');
+  pill.textContent = label;
+  pill.classList.toggle('is-cloud', isCloud);
+  pill.title = (modelOverride ? 'Session override: ' : 'Saved: ') + src + ' (click to toggle)';
+}
+function toggleModelOverride() {
+  if (!configCache) return;
+  const saved = configCache.intent_compiler?.source || 'ollama';
+  if (!modelOverride) { modelOverride = saved === 'anthropic' ? 'ollama' : 'anthropic'; }
+  else if (modelOverride !== saved) { modelOverride = null; }
+  else { modelOverride = saved === 'anthropic' ? 'ollama' : 'anthropic'; }
+  updateModelPill();
+  setStatus(modelOverride ? 'Model: ' + modelOverride + ' (session only)' : 'Model: saved config', 'ok');
+}
+
+// ── Example chips ─────────────────────────────────────────────────────────────
+function useExample(btn) {
+  const ta = document.getElementById('prompt-ta');
+  ta.value = 'build a ' + btn.textContent;
+  ta.focus();
+  onPromptInput();
+  // hide chips
+  const chips = document.getElementById('cmd-chips');
+  if (chips) chips.style.display = 'none';
+}
+
+// ── Auto-load / random project on reload ─────────────────────────────────────
+function randomProjectName() {
+  const adj = ["amber", "cobalt", "ember", "fern", "jade", "lunar", "nova", "onyx", "sage", "steel", "teal", "volt"];
+  const nou = ["anvil", "basin", "cedar", "draft", "forge", "haven", "inlet", "loft", "prism", "relay", "vault", "wren"];
+  return adj[Math.floor(Math.random()*adj.length)] + '-' + nou[Math.floor(Math.random()*nou.length)];
+}
+
+async function initAutoLoad() {
+  try {
+    const name = randomProjectName();
+    // Create fresh project with random name
+    await fetch('/projects', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({project: {name}})
+    });
+    await loadProjectList();
+    document.getElementById('proj-sel').value = name;
+    await loadProject(name);
+  } catch(e) {}
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 updateLeftSidebar('mid');
-loadProjectList();
+loadProjectList().then(() => initAutoLoad());
+initModelPill();
 updateButtons();
+
+// Global keyboard: '/' opens command bar, Escape closes
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+  if (e.key === '/') {
+    e.preventDefault();
+    openCmdBar();
+  }
+  if (e.key === 'Escape') {
+    closeCmdBar();
+  }
+});
+
+// Board background click → close cmd bar + clear target (set once)
+document.addEventListener('DOMContentLoaded', () => {
+  const board = document.getElementById('board');
+  if (board) {
+    board.addEventListener('mouseup', e => {
+      if (panMoved) return;
+      if (suppressNextBgClose) { suppressNextBgClose = false; return; }
+      if (e.target.closest('.b-part-group,.cmd-bar')) return;
+      closeCmdBar();
+    });
+  }
+  // cmd-bar clicks don't propagate to board
+  const cmdBar = document.getElementById('cmd-bar');
+  if (cmdBar) cmdBar.addEventListener('mouseup', e => e.stopPropagation());
+});
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 let settingsCache = null;
@@ -1404,8 +2511,7 @@ async function loadSettingsIntoPanel() {
 
   populateRole('intent', settingsCache.intent_compiler);
   populateRole('code',   settingsCache.code_compiler);
-  const vb = document.getElementById('mid-verbosity');
-  if (vb) vb.value = settingsCache.mid_verbosity || 'moderate';
+
 }
 
 function populateRole(role, cfg) {
@@ -1458,7 +2564,7 @@ async function saveSettings() {
   try {
     const r = await fetch('/config', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ intent_compiler: build('intent'), code_compiler: build('code'), mid_verbosity: document.getElementById('mid-verbosity').value })
+      body: JSON.stringify({ intent_compiler: build('intent'), code_compiler: build('code') })
     });
     const d = await r.json();
     if (d.saved) { closeSettings(); setStatus('Settings saved', 'ok'); }
@@ -1543,18 +2649,7 @@ async function saveSettings() {
         </div>
       </div>
     </div>
-    <!-- Mid Verbosity -->
-    <div class="settings-section">
-      <div class="settings-section-title">Mid Scope</div>
-      <div class="settings-row">
-        <div class="settings-label">Verbosity <em>— how much the model expands beyond the intent</em></div>
-        <select class="settings-select" id="mid-verbosity">
-          <option value="minimal">Minimal — only what's explicitly stated</option>
-          <option value="moderate" selected>Moderate — intent + obvious implied requirements</option>
-          <option value="free">Free — model decides scope</option>
-        </select>
-      </div>
-    </div>
+
     <!-- Code Compiler -->
     <div class="settings-section">
       <div class="settings-section-title">▶ Code Compiler <em style="font-size:9px;color:var(--text-4);font-style:italic;margin-left:6px">HTML generation</em></div>

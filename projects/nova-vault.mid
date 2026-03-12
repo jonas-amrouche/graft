@@ -1,0 +1,73 @@
+PART: Categories
+NAME: Categories
+STATUS: draft
+
+TYPE: Budget Category
+MARKER: budget_category
+INTENT: define spending categories
+---
+Each category has a name like "Food" or "Entertainment" and a monthly budget limit amount. Categories help organize expenses and set spending boundaries for different areas of life. ---
+
+STATE: Category Collection
+MARKER: category_collection
+INTENT: store all budget categories
+---
+The app maintains a list of all budget categories the user has created. Each category includes its name, monthly limit, and current spending total for easy comparison. ---
+
+STRUCTURE: Category List View
+MARKER: category_list_view
+INTENT: display categories and limits
+---
+The main view shows each category as a card with its name, monthly budget limit, current spending, and remaining amount. A progress bar visualizes how much of the budget has been used. ---
+
+WHEN: Add New Category
+MARKER: add_new_category
+INTENT: create spending category
+---
+User clicks the add button and enters a category name and monthly budget limit. The new category appears in the list with zero current spending and the full budget amount remaining. ---
+---PART---
+
+PART: Expenses
+NAME: Expenses
+STATUS: draft
+
+TYPE: Expense Entry
+MARKER: expense_entry
+INTENT: record individual purchases
+---
+Each expense has an amount, description, date, and assigned category. The description helps remember what was purchased while the category links it to the appropriate budget limit. ---
+
+STATE: Expense History
+MARKER: expense_history
+INTENT: track all spending records
+---
+The app stores every expense entry with its details and automatically calculates totals by category and date ranges. This running history enables budget tracking and spending analysis. ---
+
+STRUCTURE: Expense Input Form
+MARKER: expense_input_form
+INTENT: capture new expenses quickly
+---
+A simple form appears with fields for amount, description, category dropdown, and date picker. The interface prioritizes speed since users often log expenses on the go. ---
+
+WHEN: Record New Expense
+MARKER: record_new_expense
+INTENT: log recent purchase
+---
+User enters the expense amount, adds a description, selects a category, and confirms the date. The expense saves immediately and updates the category's current spending total and remaining budget. ---
+---PART---
+
+PART: Overview
+NAME: Overview
+STATUS: draft
+
+STRUCTURE: Budget Dashboard
+MARKER: budget_dashboard
+INTENT: show overall financial status
+---
+The dashboard displays total monthly budget, total spent, and remaining amount across all categories. Visual indicators highlight categories that are over budget or approaching their limits. ---
+
+WHEN: View Monthly Summary
+MARKER: view_monthly_summary
+INTENT: check budget performance
+---
+User navigates to the overview screen to see spending patterns and budget adherence. The dashboard automatically calculates totals and shows which categories need attention for the current month. ---

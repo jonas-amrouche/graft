@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Budget Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .dashboard {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .dashboard h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+
+        .dashboard-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            text-align: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .total { color: #3498db; }
+        .spent { color: #e74c3c; }
+        .remaining { color: #27ae60; }
+
+        .actions {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2980b9;
+        }
+
+        .btn-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #7f8c8d;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+        }
+
+        .modal h3 {
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #555;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .categories-grid {
+            display: grid;
+            gap: 20px;
+        }
+
+        .category-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .category-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .category-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .category-amounts {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: #ecf0f1;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #3498db;
+            transition: width 0.3s ease;
+        }
+
+        .progress-fill.over-budget {
+            background: #e74c3c;
+        }
+
+        .progress-fill.warning {
+            background: #f39c12;
+        }
+
+        .close {
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #aaa;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .actions {
+                flex-direction: column;
+            }
+            
+            .dashboard-stats {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Budget Tracker</h1>
+            <p>Track your spending and stay within budget</p>
+        </div>
+
+        <div class="dashboard" id="budget-dashboard">
+            <h2>Monthly Budget Overview</h2>
+            <div class="dashboard-stats">
+                <div class="stat-card">
+                    <div class="stat-value total" id="total-budget">$0</div>
+                    <div class="stat-label">Total Budget</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value spent" id="total-spent">$0</div>
+                    <div class="stat-label">Total Spent</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value remaining" id="total-remaining">$0</div>
+                    <div class="stat-label">Remaining</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="btn btn-primary" onclick="showAddCategoryModal()">Add Category</button>
+            <button class="btn btn-secondary" onclick="showAddExpenseModal()">Record Expense</button>
+        </div>
+
+        <div class="categories-grid" id="category-list">
+        </div>
+    </div>
+
+    <!-- Add Category Modal -->
+    <div id="category-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="hideAddCategoryModal()">&times;</span>
+            <h3>Add New Category</h3>
+            <form id="category-form">
+                <div class="form-group">
+                    <label for="category-name">Category Name</label>
+                    <input type="text" id="category-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="category-budget">Monthly Budget Limit</label>
+                    <input type="number" id="category-budget" step="0.01" min="0" required>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="hideAddCategoryModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Category</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Expense Modal -->
+    <div id="expense-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="hideAddExpenseModal()">&times;</span>
+            <h3>Record New Expense</h3>
+            <form id="expense-form">
+                <div class="form-group">
+                    <label for="expense-amount">Amount</label>
+                    <input type="number" id="expense-amount" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="expense-description">Description</label>
+                    <input type="text" id="expense-description" required>
+                </div>
+                <div class="form-group">
+                    <label for="expense-category">Category</label>
+                    <select id="expense-category" required>
+                        <option value="">Select a category</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="expense-date">Date</label>
+                    <input type="date" id="expense-date" required>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="hideAddExpenseModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Record Expense</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // State management
+        let categories = JSON.parse(localStorage.getItem('budget-categories') || '[]');
+        let expenses = JSON.parse(localStorage.getItem('budget-expenses') || '[]');
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            renderCategories();
+            updateDashboard();
+            setDefaultDate();
+        });
+
+        // [graft:marker]
+        function addNewCategory() {
+            const form = document.getElementById('category-form');
+            const name = document.getElementById('category-name').value;
+            const budget = parseFloat(document.getElementById('category-budget').value);
+
+            if (name && budget >= 0) {
+                const newCategory = {
+                    id: Date.now().toString(),
+                    name: name,
+                    monthlyLimit: budget,
+                    currentSpending: 0
+                };
+
+                categories.push(newCategory);
+                saveData();
+                renderCategories();
+                updateDashboard();
+                hideAddCategoryModal();
+                form.reset();
+            }
+        }
+        // [/graft:marker]
+
+        // [graft:marker]
+        function recordNewExpense() {
+            const form = document.getElementById('expense-form');
+            const amount = parseFloat(document.getElementById('expense-amount').value);
+            const description = document.getElementById('expense-description').value;
+            const categoryId = document.getElementById('expense-category').value;
+            const date = document.getElementById('expense-date').value;
+
+            if (amount > 0 && description && categoryId && date) {
+                const newExpense = {
+                    id: Date.now().toString(),
+                    amount: amount,
+                    description: description,
+                    categoryId: categoryId,
+                    date: date
+                };
+
+                expenses.push(newExpense);
+                updateCategorySpending();
+                saveData();
+                renderCategories();
+                updateDashboard();
+                hideAddExpenseModal();
+                form.reset();
+                setDefaultDate();
+            }
+        }
+        // [/graft:marker]
+
+        // [graft:marker]
+        function viewMonthlySummary() {
+            const currentMonth = new Date().getMonth();
+            const currentYear = new Date().getFullYear();
+            
+            const monthlyExpenses = expenses.filter(expense => {
+                const expenseDate = new Date(expense.date);
+                return expenseDate.getMonth() === currentMonth && 
+                       expenseDate.getFullYear() === currentYear;
+            });
+
+            const totalBudget = categories.reduce((sum, cat) => sum + cat.monthlyLimit, 0);
+            const totalSpent = monthlyExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+            const totalRemaining = totalBudget - totalSpent;
+
+            document.getElementById('total-budget').textContent = formatCurrency(totalBudget);
+            document.getElementById('total-spent').textContent = formatCurrency(totalSpent);
+            document.getElementById('total-remaining').textContent = formatCurrency(totalRemaining);
+        }
+        // [/graft:marker]
+
+        function updateCategorySpending() {
+            const currentMonth = new Date().getMonth();
+            const currentYear = new Date().getFullYear();
+
+            categories.forEach(category => {
+                const categoryExpenses = expenses.filter(expense => {
+                    const expenseDate = new Date(expense.date);
+                    return expense.categoryId === category.id &&
+                           expenseDate.getMonth() === currentMonth &&
+                           expenseDate.getFullYear() === currentYear;
+                });
+                
+                category.currentSpending = categoryExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+            });
+        }
+
+        function renderCategories() {
+            updateCategorySpending();
+            const container = document.getElementById('category-list');
+            container.innerHTML = '';
+
+            if (categories.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">No categories yet. Add your first category to get started!</p>';
+                return;
+            }
+
+            categories.forEach(category => {
+                const categoryCard = createCategoryCard(category);
+                container.appendChild(categoryCard);
+            });
+
+            updateCategoryDropdown();
+        }
+
+        function createCategoryCard(category) {
+            const card = document.createElement('div');
+            card.className = 'category-card';
+
+            const progressPercentage = (category.currentSpending / category.monthlyLimit) * 100;
+            const remaining = category.monthlyLimit - category.currentSpending;
+            
+            let progressClass = '';
+            if (progressPercentage >= 100) {
+                progressClass = 'over-budget';
+            } else if (progressPercentage >= 80) {
+                progressClass = 'warning';
+            }
+
+            card.innerHTML = `
+                <div class="category-header">
+                    <div class="category-name">${category.name}</div>
+                </div>
+                <div class="category-amounts">
+                    <span>Spent: ${formatCurrency(category.currentSpending)}</span>
+                    <span>Budget: ${formatCurrency(category.monthlyLimit)}</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill ${progressClass}" style="width: ${Math.min(progressPercentage, 100)}%"></div>
+                </div>
+                <div style="margin-top: 10px; font-size: 14px; color: ${remaining >= 0 ? '#27ae60' : '#e74c3c'}">
+                    Remaining: ${formatCurrency(remaining)}
+                </div>
+            `;
+
+            return card;
+        }
+
+        function updateCategoryDropdown() {
+            const select = document.getElementById('expense-category');
+            select.innerHTML =
