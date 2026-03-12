@@ -1,4 +1,5 @@
 # Mid LoRA — Training & Deployment Guide
+(just something I attempted with an older version of mid but not succeed)
 
 ## What this is
 A LoRA adapter for `Qwen2.5-7B-Instruct` that specialises it as a Mid compiler.
