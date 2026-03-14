@@ -83,7 +83,7 @@ Mid files are stored as `.mid` in a `projects/` folder. They are plain text and 
 
 - Python 3.10+
 - [Ollama](https://ollama.com) running locally (for local mode)
-- An Anthropic API key (for cloud mode — optional)
+- An Anthropic API key (for cloud mode — optional) (be careful to tokens use, each prompt include mid syntax knowledge and there is no RAG technic used)
 
 ---
 
